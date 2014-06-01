@@ -2,6 +2,7 @@
 #include "vec2.h"
 
 #include <assert.h>
+#include <stddef.h>
 
 Vec2I::Vec2I()
 {
