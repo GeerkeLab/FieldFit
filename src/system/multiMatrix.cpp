@@ -100,6 +100,19 @@ F64 * multiMatrix::GetBuffer()
     return  mBuffer.data();
 }
 
+//copy back to the main accessing mechanism
+void multiMatrix::BufferSwap()
+{
+    U32 stride = 0;
+
+    for ( U32 i=0; i < mHeight; ++i )
+    {
+        mInternalMatrix[i].assign( mBuffer.begin()+stride, mBuffer.begin()+stride+mWidth );
+
+        stride += mWidth;
+    }
+}
+
 U32 multiMatrix::Columns() const
 {
     return mWidth;

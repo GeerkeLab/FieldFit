@@ -27,6 +27,8 @@ public:
 
     U32 Rows() const;
 
+    void BufferSwap();
+
 private:
 
     void FitIndices( U32 i, U32 j = 0 );
