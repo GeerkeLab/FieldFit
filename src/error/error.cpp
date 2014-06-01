@@ -30,7 +30,7 @@ namespace Error
 
 	void Warn( std::ostream &stream, const std::string &msg )
 	{
-		stream << msg << std::endl;
+		stream << msg.c_str() << std::endl;
 	}
 	
 }

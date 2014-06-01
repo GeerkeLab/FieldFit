@@ -1,10 +1,20 @@
+#include "system/field.h"
+#include "system/configuration.h"
 
-#include "topologyData.h"
+#include "system/multiMatrix.h"
+
+#include "fitting/fitter.h"
+
+#include <iostream>
 
 int main()
 {	
-	TopologyData td;
-	td.ReadGromosTopology( "RosaEtohCosG2.top" );
-	
+    Field f( "../testInput/basicDipole/1007_esp.in" );
+    Configuration conf( "../testInput/basicDipole/1007.fsite" );
+
+    Fitter::FitSites( conf, f );
+
+    system("pause");
+
 	return 0;
 }

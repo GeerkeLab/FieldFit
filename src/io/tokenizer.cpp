@@ -37,7 +37,7 @@ bool Tokenizer::IsEnd()
 {
 	if ( mBuffer.size() > 1 )
 	{
-		if ( mBuffer.back().compare("END") == 0 )
+		if ( mBuffer.back().compare("[END]") == 0 )
 		{
 			mBuffer.pop_back();
 			
