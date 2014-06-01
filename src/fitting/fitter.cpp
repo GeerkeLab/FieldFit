@@ -420,11 +420,11 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     GenerateMatrices( charges, dipoles, quadrupoles, field, a, b );
 
     multiMatrix x(200);
-
-    //
-    //  DEBUG!
-    //
-    x( b.Rows()+1 ) = 0.0;
+    for ( U32 i=0; i < 200; i++ )
+    {
+        x(i) = 0.0f;
+    }
+    
 
     //Fit
     U32 stride=0;

@@ -2,13 +2,3 @@
 	1
 	TESTFILES TESTCONSTRAINTS	
 [END]
-[TESTFILES]
-#in
-../testInput/basicDipole/1007.fsite
-../testInput/basicDipole/1007_esp.in
-#out
-testtest
-[END]
-[TESTCONSTRAINTS]
-
-[END]

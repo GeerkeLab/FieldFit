@@ -29,6 +29,8 @@ public:
 
 private:
 
+    void FitIndices( U32 i, U32 j = 0 );
+
     U32 mWidth, mHeight;
 
     std::vector< std::vector< F64 > > mInternalMatrix;

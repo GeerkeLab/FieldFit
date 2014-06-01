@@ -1,5 +1,7 @@
 #include "multiMatrix.h"
 
+#include <iostream>
+
 multiMatrix::multiMatrix( U32 rows, U32 rowSize /*= 1 */ ) : mHeight( 0 ), mWidth( 0 )
 {
     mInternalMatrix.resize( rows );
@@ -11,8 +13,9 @@ multiMatrix::multiMatrix( U32 rows, U32 rowSize /*= 1 */ ) : mHeight( 0 ), mWidt
     }
 }
 
-F64 & multiMatrix::GetField( U32 i, U32 j )
+void multiMatrix::FitIndices( U32 i, U32 j )
 {
+    //elegant resize
     bool resizeRows = false;
 
     if ( j >= mWidth )
@@ -38,6 +41,11 @@ F64 & multiMatrix::GetField( U32 i, U32 j )
             it->resize( mWidth, 0 );
         }
     }
+}
+
+F64 & multiMatrix::GetField( U32 i, U32 j )
+{
+    FitIndices( i, j );
 
     return mInternalMatrix[i][j];
 }
@@ -72,11 +80,22 @@ F64 * multiMatrix::GetBuffer()
     mBuffer.clear();
     mBuffer.reserve( mWidth * mHeight );
 
+    U32 rows = 0;
     for ( std::vector< std::vector< F64 > >::iterator it = mInternalMatrix.begin(),
         itend = mInternalMatrix.end(); it != itend; ++it )
     {
-        mBuffer.insert( mBuffer.end(), it->begin(), it->end() );
+        //only take the correct row widths
+        mBuffer.insert( mBuffer.end(), it->begin(), it->begin()+mWidth );
+
+        if ( rows == mHeight )
+        {
+            break;
+        }
+
+        rows++;
     }
+
+    std::cout << mBuffer.size() << std::endl;
 
     return  mBuffer.data();
 }
