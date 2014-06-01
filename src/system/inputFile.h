@@ -3,7 +3,7 @@
 
 #include "../common/types.h"
 #include "../error/error.h"
-#include "../math/Vec3.h"
+#include "../math/vec3.h"
 
 #include <string>
 #include <vector>
