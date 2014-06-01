@@ -1,5 +1,5 @@
 #include "mathf.h"
-#include "vec4I.h"
+#include "vec4i.h"
 #include "vec4.h"
 
 #include <assert.h>
