@@ -2,7 +2,7 @@
 #include "vec3.h"
 
 #include <assert.h>
-#include <stddef.h>
+
 
 Vec3I::Vec3I()
 {

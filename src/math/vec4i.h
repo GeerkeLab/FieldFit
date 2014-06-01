@@ -4,6 +4,8 @@
 
 #include "../common/types.h"
 
+#include <stddef.h>
+
 class Vec4;
 
 class Vec4I

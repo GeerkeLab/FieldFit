@@ -2,7 +2,7 @@
 #include "vec4.h"
 
 #include <assert.h>
-#include <stddef.h>
+
 
 Vec4I::Vec4I()
 {
