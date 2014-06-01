@@ -19,13 +19,18 @@ namespace Error
 		return result;
 	}
 	
+    void Debug( std::ostream &stream, const std::string &msg )
+    {
+    #ifdef USE_REPORTING
+
+        stream << msg << std::endl;
+
+    #endif
+    }
+
 	void Report( std::ostream &stream, const std::string &msg )
 	{
-		#ifdef USE_REPORTING
-			
-		stream << msg << std::endl;
-		
-		#endif
+		stream << msg.c_str() << std::endl;
 	}
 
 	void Warn( std::ostream &stream, const std::string &msg )

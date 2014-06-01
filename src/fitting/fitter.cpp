@@ -1,5 +1,7 @@
 #include "fitter.h"
 
+#include "../system/report.h"
+
 #include <fstream>
 
 Fitter::ChargeSite::ChargeSite()
@@ -71,7 +73,7 @@ F64 Fitter::DelComp( const Configuration::valueType type, const Vec3 &i, const V
     }
 }
 
-Error::STATUS Fitter::GenerateMatrices( std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, const Field &field, multiMatrix< F64 > &a, multiMatrix< F64 > &b )
+Error::STATUS Fitter::GenerateMatrices( std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, const Field &field, multiMatrix &a, multiMatrix &b )
 {
     //
     // Charges
@@ -413,16 +415,28 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     //
     //  Construct AX = b
     //
-    multiMatrix< F64 > a( 200, 200 ), b( 200, 1 );
+    multiMatrix a( 200, 200 ), b( 200, 1 );
 
     GenerateMatrices( charges, dipoles, quadrupoles, field, a, b );
 
-    FILE * pFile = fopen("debug.txt","w");
+    multiMatrix x(200);
 
-    a.Debug( pFile );
-    b.Debug( pFile );
+    //
+    //  DEBUG!
+    //
+    x( b.Rows()+1 ) = 0.0;
 
-    fclose (pFile);
+    //Fit
+    U32 stride=0;
+    for ( U32 i=0; i < charges.size(); ++i )
+    {
+        conf.GetSiteMod( stride )->SetValue( charges[i].type, x(stride) );
+
+        stride++;
+    }
     
+    Report rp( conf, field );
+    rp.WriteToStream( std::cout );
+
     return Error::STATUS::OK;
 }

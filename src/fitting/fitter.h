@@ -46,7 +46,7 @@ namespace Fitter
 
     F64 DelComp( const Configuration::valueType, const Vec3 &i, const Vec3 &j );
 
-    Error::STATUS GenerateMatrices( std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, const Field &field, multiMatrix< F64 > &a, multiMatrix< F64 > &b  );
+    Error::STATUS GenerateMatrices( std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, const Field &field, multiMatrix &a, multiMatrix &b  );
 
     Error::STATUS FitSites( Configuration &conf, const Field &field  );
 };

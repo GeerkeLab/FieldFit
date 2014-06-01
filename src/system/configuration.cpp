@@ -7,11 +7,6 @@
 
 Configuration::Configuration( const std::string &file )
 {
-    for ( U32 i=0; i < 9; ++i )
-    {
-        values[i] = 0.0;
-    }
-
     BlockParser bp( file );
 
     if ( Error::FAILED( bp.GetStatus() ) )
@@ -106,12 +101,18 @@ const Configuration::FitSite * Configuration::GetSite( const U32 index ) const
     return NULL;
 }
 
-F32 Configuration::GetValue( const valueType type )
+Configuration::FitSite * Configuration::GetSiteMod( const U32 index )
+{
+    return &mFitSites[ index ];
+}
+
+
+F32 Configuration::FitSite::GetValue( const valueType type ) const
 {
     return values[ static_cast<U32>( type ) ];
 }
 
-void Configuration::SetValue( const valueType type, const F32 val )
+void Configuration::FitSite::SetValue( const valueType type, const F32 val )
 {
     values[ static_cast<U32>( type ) ] = val;
 }

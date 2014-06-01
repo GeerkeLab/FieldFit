@@ -30,7 +30,17 @@ public:
         FitSite( const std::string &n, const F32 charge, const F32 x, const F32 y, const F32 z, const U32 flags ) :
             name( n ), atomicCharge( charge ), position( x, y, z ), fitFlags( flags ) 
         {
+            for ( U32 i=0; i < 9; ++i )
+            {
+                values[i] = 0.0;
+            }
         }
+
+        F32 GetValue( const valueType type ) const;
+
+        void SetValue( const valueType type, const F32 val );
+
+        F32 values[9];
 
         const std::string name;
         const F32 atomicCharge;
@@ -45,13 +55,13 @@ public:
     U32 Size() const;
 
     const FitSite *GetSite( const U32 index ) const;
+   
+    FitSite *GetSiteMod( const U32 index );
 
     F32 GetValue( const valueType type );
     void SetValue( const valueType type, const F32 val );
 
 private:
-
-    F32 values[9];
 
     Error::STATUS mStatus;
 

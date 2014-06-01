@@ -5,105 +5,35 @@
 #include <fstream>
 #include <stdio.h>
 
-template< class T >
+#include "../common/types.h"
+
 class multiMatrix
 {
 public:
 
-    multiMatrix( U32 rowSize , U32 rows ) : mHeight( 0 ), mWidth( 0 )
-    {
-        mInternalMatrix.resize( rows );
+    multiMatrix( U32 rows, U32 rowSize = 1 );
 
-        for ( std::vector< std::vector< T > >::iterator it = mInternalMatrix.begin(),
-            itend = mInternalMatrix.end(); it != itend; ++it )
-        {
-            it->resize( rowSize, 0 );
-        }
-    }
+    F64 & GetField( U32 i, U32 j );
 
-    T & operator()( U32 i, U32 j )
-    {
-        bool resizeRows = false;
-        
-        if ( j >= mWidth )
-        {
-            mWidth = j+1;
+    F64 & operator()( U32 i, U32 j );
 
-            resizeRows = true;
-        }
+    F64 & operator()( U32 i );  
 
-        if ( i >= mHeight )
-        {
-            mHeight = i+1;
-            mInternalMatrix.resize( mHeight );
+    void Debug( std::ostream &stream );
 
-            resizeRows = true;
-        }
+    F64 * GetBuffer();
 
-        if ( resizeRows )
-        {
-            for ( std::vector< std::vector< T > >::iterator it = mInternalMatrix.begin(),
-                itend = mInternalMatrix.end(); it != itend; ++it )
-            {
-                it->resize( mWidth, 0 );
-            }
-        }
+    U32 Columns() const;
 
-        return mInternalMatrix[i][j];
-    }
-
-    void Debug( std::ostream &stream )
-    {
-        for ( std::vector< std::vector< T > >::iterator it = mInternalMatrix.begin(),
-            itend = mInternalMatrix.end(); it != itend; ++it )
-        {
-            for ( std::vector< T >::iterator itj = it->begin(),
-                itendj = it->end(); itj != itendj; ++itj )
-            {
-                stream << "\t" << *itj;
-            }
-
-            stream << std::endl;
-        }
-    }
-
-    //ugly old c-style for double formatting
-    void Debug( FILE *stream )
-    {
-        for ( std::vector< std::vector< T > >::iterator it = mInternalMatrix.begin(),
-            itend = mInternalMatrix.end(); it != itend; ++it )
-        {
-            for ( std::vector< T >::iterator itj = it->begin(),
-                itendj = it->end(); itj != itendj; ++itj )
-            {
-                 fprintf (stream, " %15.7f", *itj );
-            }
-
-            fprintf (stream, "\n" );
-        }
-    }
-
-    T * GetBuffer()
-    {
-        mBuffer.clear();
-        mBuffer.reserve( mWidth * mHeight );
-
-        for ( std::vector< std::vector< T > >::iterator it = mInternalMatrix.begin(),
-            itend = mInternalMatrix.end(); it != itend; ++it )
-        {
-            mBuffer.insert( mBuffer.end(), it->begin(), it->end() );
-        }
-
-        return  mBuffer.data();
-    }
+    U32 Rows() const;
 
 private:
 
     U32 mWidth, mHeight;
 
-    std::vector< std::vector< T > > mInternalMatrix;
+    std::vector< std::vector< F64 > > mInternalMatrix;
 
-    std::vector< T > mBuffer;
+    std::vector< F64 > mBuffer;
 };
 
 #endif
