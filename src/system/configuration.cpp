@@ -648,7 +648,9 @@ Error::STATUS Configuration::ReadSumConstraints( const BlockParser &bp )
     	
     	F32 value = block->GetToken( index )->GetValue< F32 >();
     	
-        mSumConstraints.push_back( SumConstraint( ind, value ) );
+
+        if ( ind.size() > 0 )
+            mSumConstraints.push_back( SumConstraint( ind, value ) );
     	
     	index += 1;
     }
