@@ -9,7 +9,7 @@
 
 int main()
 {	
-    Field field( "../testInput/basicDipole/1007_esp_DUMMY.in" );
+    Field field( "../testInput/basicDipole/1007_esp.in" );
     
     if ( Error::FAILED( field.GetStatus() ) )
     {
