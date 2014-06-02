@@ -546,7 +546,7 @@ Error::STATUS Configuration::ReadSymConstraints( const BlockParser &bp )
     		ind.push_back( block->GetToken( index+1+j )->GetValue< U32 >() );
     	}
     	
-    	std::string fitflags = block->GetToken( index+1+(indices-1) )->GetToken();
+    	std::string fitflags = block->GetToken( index+1+indices )->GetToken();
         U32 convFlags = 0;
         for ( U32 j=0; j < fitflags.size(); ++j )
         {
