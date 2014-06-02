@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <map>
 
-#include "lapacke.h"
+//#include "lapacke.h"
 
 Fitter::ChargeSite::ChargeSite()
 {
@@ -400,7 +400,7 @@ Error::STATUS Fitter::AddConstraints( std::vector< Constraint > &constraints, mu
 	}
 	
 	//add the actual constraints
-	for ( U32 i=0; constraints.size(); ++i )
+	for ( U32 i=0; i < constraints.size(); ++i )
 	{
 		const Constraint &constr = constraints[i];
 		
@@ -559,9 +559,69 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     for ( U32 i=0; i < conf.SymConstr(); ++i )
     {
     	const Configuration::SymConstraint *constr = conf.GetSymConstraint( i );
-    	
-    	
-    	
+    	const U32 id1 = constr->ID1;
+    	const U32 id2 = constr->ID2;
+    	const Configuration::valueType type = constr->type;
+
+        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it1 = mColumnTranslation.find( std::make_pair( id1, type ) );
+        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it2 = mColumnTranslation.find( std::make_pair( id2, type ) );
+
+        if ( it1 == mColumnTranslation.end() )
+        {
+            Error::Warn( std::cout, "The combination of id " + Util::ToString( id1 ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+                + "  is not a fitting combination, so cannot be constrained !" );
+
+            return Error::STATUS::FAILED_CONSTR_R;
+        }
+
+        if ( it2 == mColumnTranslation.end() )
+        {
+            Error::Warn( std::cout, "The combination of id " + Util::ToString( id2 ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+                + "  is not a fitting combination, so cannot be constrained !" );
+
+            return Error::STATUS::FAILED_CONSTR_R;
+        }
+
+        std::vector< U32 > targetColumns;
+        std::vector< F32 > targetCoefficients;
+        targetColumns.push_back( it1->second );
+        targetColumns.push_back( it2->second );
+        targetCoefficients.push_back( 1.0 );
+        targetCoefficients.push_back( -1.0 );
+
+        constraints.push_back( Constraint( targetColumns, targetCoefficients, 0.0 ) );
+    }
+
+    for ( U32 i=0; i < conf.SumConstr(); ++i )
+    {
+        const Configuration::SumConstraint *constr = conf.GetSumConstraint( i );
+       
+        std::vector< U32 > targetColumns;
+        std::vector< F32 > targetCoefficients;
+        for ( U32 j=0; j < constr->locations.size(); j++ )
+        {
+            const std::pair< U32, Configuration::valueType > &pair = constr->locations[i];
+
+            const U32 id = pair.first;
+            const Configuration::valueType type = pair.second;
+
+            std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it = mColumnTranslation.find( std::make_pair( id, type ) );
+
+            if ( it == mColumnTranslation.end() )
+            {
+                Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+                    + "  is not a fitting combination, so cannot be constrained !" );
+
+                return Error::STATUS::FAILED_CONSTR_R;
+            }
+
+            targetColumns.push_back( it->second );
+            targetCoefficients.push_back( 1.0 );
+        }
+
+        F32 reference = constr->value;
+
+        constraints.push_back( Constraint( targetColumns, targetCoefficients, reference ) );
     }
     
 
@@ -603,10 +663,8 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
 
      U32 N = charges.size() + dipoles.size() + quadrupoles.size();
 
-    S32 result = LAPACKE_dgesv( LAPACK_ROW_MAJOR, N, 1, abuffer, N, ipiv, bBuffer, 1 );    
+    //S32 result = LAPACKE_dgesv( LAPACK_ROW_MAJOR, N, 1, abuffer, N, ipiv, bBuffer, 1 );    
 
-    std::cout << result << std::endl;
-    
     b.BufferSwap();
     
     x = b;

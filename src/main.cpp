@@ -9,11 +9,14 @@
 
 int main()
 {	
-    Field field( "../testInput/basicDipole/1007_esp.in" );
+    Field field( "../testInput/basicDipole/1007_esp_DUMMY.in" );
     
     if ( Error::FAILED( field.GetStatus() ) )
     {
     	Error::Warn( std::cout, "Unable to generate a field input, fatal error!" );
+
+         system("pause");
+
     	return 1;
     }
     
@@ -22,7 +25,10 @@ int main()
     if ( Error::FAILED( conf.GetStatus() ) )
     {
     	Error::Warn( std::cout, "Unable to generate a configuration input, fatal error!" );
-    	return 1;
+    	
+         system("pause");
+
+        return 1;
     }
     
     conf.Raport( std::cout );
@@ -30,6 +36,9 @@ int main()
     if ( Error::FAILED( Fitter::FitSites( conf, field ) ) )
     {
     	Error::Warn( std::cout, "Unable to fit the selected sites, fatal error!" );
+
+         system("pause");
+
     	return 1;
     }
     
