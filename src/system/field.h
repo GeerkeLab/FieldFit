@@ -24,7 +24,7 @@ private:
 
     Error::STATUS mStatus;
 
-    std::vector< Vec3 > mGenerationSites;
+    //std::vector< Vec3 > mGenerationSites;
 
     std::vector< Vec3 > mFieldPositions;
     std::vector< F64 >  mFieldPotential;

@@ -35,7 +35,7 @@ namespace Error
 
 	void Warn( std::ostream &stream, const std::string &msg )
 	{
-		stream << msg.c_str() << std::endl;
+		stream << "<<< [ERROR] >>> " << msg.c_str() << std::endl;
 	}
 	
 }

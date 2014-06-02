@@ -27,26 +27,27 @@ Field::Field( const std::string &file )
         return;
     }
 
-    if ( block->Size() < 2 )
+    if ( block->Size() < 1 )
     {
-        Error::Warn( std::cout, "block [FIELD] was too small ( at least 2 arguments expected ) !" );
+        Error::Warn( std::cout, "block [FIELD] was too small ( at least 1 argument1 expected ) !" );
         mStatus =  Error::STATUS::FAILED_IO;
         return;
     }
 
-    U32 genSites = block->GetToken( 0 )->GetValue< U32 >();
-    U32 potentialSites = block->GetToken( 1 )->GetValue< U32 >();
+    //U32 genSites = block->GetToken( 0 )->GetValue< U32 >();
+    U32 potentialSites = block->GetToken( 0 )->GetValue< U32 >();
 
     //test for the correct size
-    if ( block->Size() != ( 2 + ( genSites * 3 ) + ( potentialSites * 4 ) ) )
+    if ( block->Size() != ( 1  + ( potentialSites * 4 ) ) )
     {
         Error::Warn( std::cout, "block [FIELD] did not have the right amount of arguments based on the size indicators !" );
         mStatus =  Error::STATUS::FAILED_IO;
         return;
     }
 
-    U32 index = 2;
+    U32 index = 1;
 
+    /*
     for ( U32 i=0; i < genSites; ++i )
     {
         F32 x = block->GetToken( index )->GetValue< F32 >();
@@ -57,7 +58,8 @@ Field::Field( const std::string &file )
 
         index += 3;
     }
-
+    */
+    
     for ( U32 i=0; i < potentialSites; ++i )
     {
         F64 potential = block->GetToken( index )->GetValue< F64 >();

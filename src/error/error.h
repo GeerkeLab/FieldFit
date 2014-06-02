@@ -10,6 +10,7 @@ namespace Error
 	{
 		OK = 1,
 		FAILED_IO = 2,
+		FAILED_CONSTR_R = 3
 	};
 
 	bool FAILED( STATUS status );
