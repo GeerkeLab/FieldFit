@@ -7,9 +7,15 @@
 #include <assert.h>
 #include <iostream>
 
-BlockParser::BlockParser( const std::string &file ) 
+BlockParser::BlockParser( const std::vector< std::string > &files ) 
 {
-	mStatus = ParseFile( file );
+	for( U32 i=0; i < files.size(); ++i )
+	{
+		mStatus = ParseFile( files[i] );
+		
+		if ( Error::FAILED( mStatus ) )
+			return;
+	}
 }
 	
 const Block * BlockParser::GetBlock( const std::string &block ) const
@@ -46,6 +52,7 @@ Error::STATUS BlockParser::ParseFile( const std::string &file )
 	
 	if ( !stream.is_open() )
 	{
+		Error::Warn( std::cout, "Unable to open file "+file+" !" );
 		return Error::STATUS::FAILED_IO;
 	}
 	

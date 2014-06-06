@@ -60,19 +60,21 @@ F64 & multiMatrix::operator()( U32 i )
     return GetField( i, 0 );
 }
 
-void multiMatrix::Debug( std::ostream &stream )
+void multiMatrix::Report( const std::string& blockName )
 {
-    for ( std::vector< std::vector< F64 > >::iterator it = mInternalMatrix.begin(),
-        itend = mInternalMatrix.end(); it != itend; ++it )
+    printf( (std::string("[")+blockName+"]\n").c_str() );
+    
+    for ( U32 i=0; i < Rows(); ++i )
     {
-        for ( std::vector< F64 >::iterator itj = it->begin(),
-            itendj = it->end(); itj != itendj; ++itj )
+        for ( U32 j=0; j < Columns(); ++j )
         {
-            stream << "\t" << *itj;
+           printf( "  %12.5f", mInternalMatrix[i][j] );
         }
 
-        stream << std::endl;
+         printf( "\n" );
     }
+    
+    printf( "[END]\n" );
 }
 
 F64 * multiMatrix::GetBuffer()
@@ -95,12 +97,10 @@ F64 * multiMatrix::GetBuffer()
         rows++;
     }
 
-    std::cout << mBuffer.size() << std::endl;
-
     return  mBuffer.data();
 }
 
-//copy back to the main accessing mechanism
+//copy back to the main mechanism
 void multiMatrix::BufferSwap()
 {
     U32 stride = 0;

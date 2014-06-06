@@ -28,3 +28,36 @@ std::string Util::Trim(const std::string &s)
     }
     return std::string(s, nSPos, nEPos - nSPos + 1);
 }
+
+U32 Util::ToFlags( const std::string &flagString )
+{
+	U32 convFlags = 0;
+	for ( U32 j=0; j < flagString.size(); ++j )
+	{
+		char flag = flagString[j];
+	
+		if ( flag == '1' )
+		{
+			convFlags += ( 1 << j );
+		}
+	}
+	
+	return convFlags;
+}
+
+std::string Util::FromFlags( const U32 convFlags )
+{
+	std::string rstring;
+	
+	for ( U32 i=0; i < 9; ++i )
+	{
+		if ( convFlags & ( 1 << i ) )
+			
+			rstring += '1';
+		else
+			rstring += '0';
+		
+	}
+	
+	return rstring;
+}

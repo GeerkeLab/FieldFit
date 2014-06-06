@@ -46,7 +46,14 @@ public:
             mSs << "\tQ22S   " << site->GetValue( Configuration::valueType::qd22s ) << std::endl;
             mSs << std::endl;
         }
-
+        
+        mSs << "[END]" << std::endl;
+        
+        const F64 chisqr = field.GetFieldStats( conf );
+        
+        //also calculate chiSqr
+        mSs << "[CHISQR]" << std::endl;
+        mSs << "\t" << chisqr << std::endl;
         mSs << "[END]" << std::endl;
     }
 

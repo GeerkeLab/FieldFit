@@ -1,12 +1,11 @@
 #include "fitter.h"
-#include "../system/report.h"
 #include "../common/types.h"
 #include "../util/util.h"
 
 #include <stdio.h>
 #include <map>
 
-//#include "lapacke.h"
+#include "lapacke.h"
 
 Fitter::ChargeSite::ChargeSite()
 {
@@ -82,7 +81,241 @@ F64 Fitter::DelComp( const Configuration::valueType type, const Vec3 &i, const V
     return 0.0;
 }
 
-Error::STATUS Fitter::GenerateMatrices( std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, const Field &field, multiMatrix &a, multiMatrix &b )
+Error::STATUS Fitter::TabulateSites( const Configuration &conf, std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation )
+{    
+    U32 column = 0;
+    
+    for ( U32 i=0; i < conf.Size(); ++i )
+    {
+        const Configuration::FitSite *site = conf.GetSite( i );
+        const U32 fitFlags = site->fitFlags;
+        const Vec3 & pos   = site->position;
+        const U32 id = site->ID;
+        
+        if ( fitFlags & (0x01) )
+        {
+            charges.push_back( ChargeSite( i, pos, Configuration::valueType::charge ) );
+            
+            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::charge );
+            mColumnTranslation.insert( std::make_pair( hash , column ) );
+            column++;
+        }
+            
+        if ( fitFlags & (0x02) )
+        {
+            dipoles.push_back( DipoleSite( i, pos, Configuration::valueType::dipoleX ) );
+            
+            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::dipoleX );
+            mColumnTranslation.insert( std::make_pair( hash , column ) );
+            column++;
+        }
+        
+        if ( fitFlags & (0x04) )
+        {
+            dipoles.push_back( DipoleSite( i, pos, Configuration::valueType::dipoleY ) );
+            
+            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::dipoleY );
+            mColumnTranslation.insert( std::make_pair( hash , column ) );
+            column++;
+        }
+        
+        if ( fitFlags & (0x08) )
+        {
+            dipoles.push_back( DipoleSite( i, pos, Configuration::valueType::dipoleZ ) );
+            
+            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::dipoleZ );
+            mColumnTranslation.insert( std::make_pair( hash , column ) );
+            column++;
+        }
+        
+        if ( fitFlags & (0x10) )
+        {
+            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd20 ) );
+            
+            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd20 );
+            mColumnTranslation.insert( std::make_pair( hash , column ) );
+            column++;
+        }
+        
+        if ( fitFlags & (0x20) )
+        {
+            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd21c ) );
+            
+            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd21c );
+            mColumnTranslation.insert( std::make_pair( hash , column ) );
+            column++;
+        }
+        
+        if ( fitFlags & (0x40) )
+        {
+            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd21s ) );
+            
+            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd21s );
+            mColumnTranslation.insert( std::make_pair( hash , column ) );
+            column++;
+        }
+        
+        if ( fitFlags & (0x80) )
+        {
+            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd22c ) );
+            
+            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd22c );
+            mColumnTranslation.insert( std::make_pair( hash , column ) );
+            column++;
+        }
+        
+        if ( fitFlags & (0x100) )
+        {
+            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd22s ) );
+            
+            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd22s );
+            mColumnTranslation.insert( std::make_pair( hash , column ) );
+            column++;
+        }
+    }
+    
+    return Error::STATUS::OK;
+}
+
+Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vector< Constraint > & constraints, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation )
+{
+	for ( U32 i=0; i < conf.ValueConstr(); ++i )
+    {
+    	const Configuration::ValueConstraint *constr = conf.GetValueConstraint( i );
+    	const U32 id = constr->ID;
+    	const Configuration::valueType type = constr->type;
+        F32 val = constr->value;
+    	
+    	//if dipole or quadrupole convert!
+    	if ( type == Configuration::valueType::dipoleX || 
+    		 type == Configuration::valueType::dipoleY ||
+    		 type == Configuration::valueType::dipoleZ
+    	   )
+    	{
+    		val /= 2.541748;
+    	}
+    	else if ( type == Configuration::valueType::qd20  || 
+    		      type == Configuration::valueType::qd21c ||
+    		   	  type == Configuration::valueType::qd21s ||
+    		 	  type == Configuration::valueType::qd22c ||
+    		  	  type == Configuration::valueType::qd22s
+    	        )
+    	{
+    		val /= 1.3450351;
+    	}
+    	
+    	//find the correct column;
+    	std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it = mColumnTranslation.find( std::make_pair( id, type ) );
+    	
+    	if ( it == mColumnTranslation.end() )
+    	{
+    		Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+    			                  + "  is not a fitting combination, so cannot be constrained !" );
+    		
+    		return Error::STATUS::FAILED_CONSTR_R;
+    	}
+    	
+    	std::vector< U32 > targetColumns;
+    	std::vector< F32 > targetCoefficients;
+    	targetColumns.push_back( it->second );
+    	targetCoefficients.push_back( 1.0 );
+    	
+    	constraints.push_back( Constraint( targetColumns, targetCoefficients, val ) );
+    }
+    
+    for ( U32 i=0; i < conf.SymConstr(); ++i )
+    {
+    	const Configuration::SymConstraint *constr = conf.GetSymConstraint( i );
+    	const U32 id1 = constr->ID1;
+    	const U32 id2 = constr->ID2;
+    	const Configuration::valueType type = constr->type;
+
+        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it1 = mColumnTranslation.find( std::make_pair( id1, type ) );
+        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it2 = mColumnTranslation.find( std::make_pair( id2, type ) );
+
+        if ( it1 == mColumnTranslation.end() )
+        {
+            Error::Warn( std::cout, "The combination of id " + Util::ToString( id1 ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+                + "  is not a fitting combination, so cannot be constrained !" );
+
+            return Error::STATUS::FAILED_CONSTR_R;
+        }
+
+        if ( it2 == mColumnTranslation.end() )
+        {
+            Error::Warn( std::cout, "The combination of id " + Util::ToString( id2 ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+                + "  is not a fitting combination, so cannot be constrained !" );
+
+            return Error::STATUS::FAILED_CONSTR_R;
+        }
+
+        std::vector< U32 > targetColumns;
+        std::vector< F32 > targetCoefficients;
+        targetColumns.push_back( it1->second );
+        targetColumns.push_back( it2->second );
+        targetCoefficients.push_back( 1.0 );
+        targetCoefficients.push_back( -1.0 );
+
+        constraints.push_back( Constraint( targetColumns, targetCoefficients, 0.0 ) );
+    }
+
+    for ( U32 i=0; i < conf.SumConstr(); ++i )
+    {
+        const Configuration::SumConstraint *constr = conf.GetSumConstraint( i );
+       
+        std::vector< U32 > targetColumns;
+        std::vector< F32 > targetCoefficients;
+        
+        for ( U32 j=0; j < constr->locations.size(); j++ )
+        {
+            const std::pair< U32, Configuration::valueType > &pair = constr->locations[j];
+
+            const U32 id = pair.first;
+            const Configuration::valueType type = pair.second;
+
+            //if dipole or quadrupole convert!
+            F32 coefficientScaling = 1.0;
+            
+			if ( type == Configuration::valueType::dipoleX || 
+				 type == Configuration::valueType::dipoleY ||
+				 type == Configuration::valueType::dipoleZ
+			   )
+			{
+				coefficientScaling = 2.541748;
+			}
+			else if ( type == Configuration::valueType::qd20  || 
+					  type == Configuration::valueType::qd21c ||
+					  type == Configuration::valueType::qd21s ||
+					  type == Configuration::valueType::qd22c ||
+					  type == Configuration::valueType::qd22s
+					)
+			{
+				coefficientScaling = 1.3450351;
+			}
+            
+            std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it = mColumnTranslation.find( std::make_pair( id, type ) );
+
+            if ( it == mColumnTranslation.end() )
+            {
+                Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+                    + "  is not a fitting combination, so cannot be constrained !" );
+
+                return Error::STATUS::FAILED_CONSTR_R;
+            }
+            
+            targetColumns.push_back( it->second );
+            targetCoefficients.push_back( coefficientScaling * 1.0 );
+        }
+
+        F32 reference = constr->value;
+
+        constraints.push_back( Constraint( targetColumns, targetCoefficients, reference ) );
+    }
+	
+	return Error::STATUS::OK;
+}
+
+Error::STATUS Fitter::GenerateMatrices( const std::vector< ChargeSite > &charges,  const std::vector< DipoleSite > &dipoles, const std::vector< QuadrupoleSite > &quadrupoles, const Field &field, multiMatrix &a, multiMatrix &b )
 {
     //
     // Charges
@@ -170,10 +403,10 @@ Error::STATUS Fitter::GenerateMatrices( std::vector< ChargeSite > &charges, std:
 
             F64 disti_2 = fpos.Distance2( charges[i].pos );
 
-            sum += ( field.GetFieldPotential(n) )/Mathf::Sqrt( disti_2 );
+            sum += ( field.GetFieldDiff(n) )/Mathf::Sqrt( disti_2 );
         }
 
-        b(row, 0)=2.0*sum;
+        b(row)=2.0*sum;
 
         row++;
     }
@@ -266,10 +499,10 @@ Error::STATUS Fitter::GenerateMatrices( std::vector< ChargeSite > &charges, std:
             F64 disti_2 = fpos.Distance2( dipoles[i].pos );
             F64 delcompi = DelComp( dipoles[i].type, fpos, dipoles[i].pos );
 
-            sum += ( field.GetFieldPotential(n) * delcompi ) / ( disti_2 * Mathf::Sqrt( disti_2 ) );
+            sum += ( field.GetFieldDiff(n) * delcompi ) / ( disti_2 * Mathf::Sqrt( disti_2 ) );
         }
 
-        b(row, 0)=2.0*sum;
+        b(row)=2.0*sum;
 
         row++;
     }
@@ -363,10 +596,10 @@ Error::STATUS Fitter::GenerateMatrices( std::vector< ChargeSite > &charges, std:
             F64 disti_2 = fpos.Distance2( quadrupoles[i].pos );
             F64 delcomp = DelComp( quadrupoles[i].type, fpos, quadrupoles[i].pos );
 
-            sum += ( field.GetFieldPotential(n) * delcomp ) / ( disti_2 * disti_2 * Mathf::Sqrt( disti_2 ) );
+            sum += ( field.GetFieldDiff(n) * delcomp ) / ( disti_2 * disti_2 * Mathf::Sqrt( disti_2 ) );
         }
 
-        b(row, 0)=2.0*sum;
+        b(row)=2.0*sum;
 
         row++;
     }
@@ -406,13 +639,75 @@ Error::STATUS Fitter::AddConstraints( std::vector< Constraint > &constraints, mu
 		
 		for ( U32 j=0; j < constr.matrixColumns.size(); ++j )
 		{
-			U32 colRow = constr.matrixColumns[j];
+			U32 col= constr.matrixColumns[j];
 			F32 cf = constr.matrixCoefficients[j];
 			
-			a( strideRow+i, colRow ) = cf;
+			a( strideRow+i, col ) = cf;
+			a( col, strideRow+i ) = cf;
 		}
 		
 		b( strideRow+i ) = constr.reference;
+	}
+	
+	return Error::STATUS::OK;
+}
+
+Error::STATUS Fitter::AddRestraints( const Configuration &conf, std::vector< Constraint > &constraints, multiMatrix &q, multiMatrix &c, 
+	                                 std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation )
+{
+	U32 rowStride = q.Rows();
+	
+	for ( U32 i=0; i < ( mColumnTranslation.size() + constraints.size() ); ++i )
+	{
+		for ( U32 j=0; j < ( mColumnTranslation.size() + constraints.size() ); ++j )
+		{
+			q( rowStride+i, j ) = 0.0;
+		}
+		
+		c( rowStride+i ) = 0.0;
+	}
+	
+	for ( U32 i=0; i < conf.RespRestr(); ++i )
+	{
+		const Configuration::RespRestraint *restr = conf.GetRespRestraint( i );
+		const Configuration::valueType type = restr->type;
+		const U32 id = restr->ID;
+		const F32 intensity = restr->intensity;
+		F32 reference = restr->refValue;
+		
+		//if dipole or quadrupole convert!
+    	if ( type == Configuration::valueType::dipoleX || 
+    		 type == Configuration::valueType::dipoleY ||
+    		 type == Configuration::valueType::dipoleZ
+    	   )
+    	{
+    		reference /= 2.541748;
+    	}
+    	else if ( type == Configuration::valueType::qd20  || 
+    		      type == Configuration::valueType::qd21c ||
+    		   	  type == Configuration::valueType::qd21s ||
+    		 	  type == Configuration::valueType::qd22c ||
+    		  	  type == Configuration::valueType::qd22s
+    	        )
+    	{
+    		reference /= 1.3450351;
+    	}
+		
+		//find the correct column;
+    	std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it = mColumnTranslation.find( std::make_pair( id, type ) );
+    	
+    	if ( it == mColumnTranslation.end() )
+    	{
+    		Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+    			                  + "  is not a fitting combination, so cannot be restrained !" );
+    		
+    		return Error::STATUS::FAILED_CONSTR_R;
+    	}
+		
+    	U32 index = it->second;
+    	
+		q( rowStride+i, index ) =  1.0f * intensity;
+		c( rowStride+i ) = reference;
 	}
 	
 	return Error::STATUS::OK;
@@ -423,9 +718,6 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     //
     //  Tabulate
     //  
-
-    const U32 cfSize = conf.Size();
-
     std::vector< ChargeSite > charges;
     std::vector< DipoleSite > dipoles;
     std::vector< QuadrupoleSite > quadrupoles;
@@ -433,243 +725,124 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     //map that we will use for the constraint to easily turn an ID and type into the correct column;
     //std::pair< U32, Configuration::valueType > is turned into a hash
     std::map< std::pair< U32, Configuration::valueType >, U32 > mColumnTranslation;
-    
-    U32 column = 0;
-    
-    for ( U32 i=0; i < conf.Size(); ++i )
-    {
-        const Configuration::FitSite *site = conf.GetSite( i );
-        const U32 fitFlags = site->fitFlags;
-        const Vec3 & pos   = site->position;
-        const U32 id = site->ID;
-        
-        if ( fitFlags & (0x01) )
-        {
-            charges.push_back( ChargeSite( i, pos, Configuration::valueType::charge ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::charge );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
-            
-        if ( fitFlags & (0x02) )
-        {
-            dipoles.push_back( DipoleSite( i, pos, Configuration::valueType::dipoleX ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::dipoleX );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
-        
-        if ( fitFlags & (0x04) )
-        {
-            dipoles.push_back( DipoleSite( i, pos, Configuration::valueType::dipoleY ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::dipoleY );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
-        
-        if ( fitFlags & (0x08) )
-        {
-            dipoles.push_back( DipoleSite( i, pos, Configuration::valueType::dipoleZ ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::dipoleZ );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
-        
-        if ( fitFlags & (0x10) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd20 ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd20 );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
-        
-        if ( fitFlags & (0x20) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd21c ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd21c );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
-        
-        if ( fitFlags & (0x40) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd21s ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd21s );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
-        
-        if ( fitFlags & (0x80) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd22c ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd22c );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
-        
-        if ( fitFlags & (0x100) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd22s ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd22s );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
-    }
+	
+	TabulateSites( conf, charges, dipoles, quadrupoles, mColumnTranslation );
     
     //
     //	Translate the constraints to an easy format
     //
     std::vector< Constraint > constraints;
     
-    for ( U32 i=0; i < conf.ValueConstr(); ++i )
-    {
-    	const Configuration::ValueConstraint *constr = conf.GetValueConstraint( i );
-    	const U32 id = constr->ID;
-    	const Configuration::valueType type = constr->type;
-    	const F32 val = constr->value;
-    	
-    	//find the correct column;
-    	std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it = mColumnTranslation.find( std::make_pair( id, type ) );
-    	
-    	if ( it == mColumnTranslation.end() )
-    	{
-    		Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
-    			                  + "  is not a fitting combination, so cannot be constrained !" );
-    		
-    		return Error::STATUS::FAILED_CONSTR_R;
-    	}
-    	
-    	std::vector< U32 > targetColumns;
-    	std::vector< F32 > targetCoefficients;
-    	targetColumns.push_back( it->second );
-    	targetCoefficients.push_back( 1.0 );
-    	
-    	constraints.push_back( Constraint( targetColumns, targetCoefficients, val ) );
-    }
+    TabulateConstraints( conf, constraints,  mColumnTranslation );
     
-    for ( U32 i=0; i < conf.SymConstr(); ++i )
-    {
-    	const Configuration::SymConstraint *constr = conf.GetSymConstraint( i );
-    	const U32 id1 = constr->ID1;
-    	const U32 id2 = constr->ID2;
-    	const Configuration::valueType type = constr->type;
-
-        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it1 = mColumnTranslation.find( std::make_pair( id1, type ) );
-        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it2 = mColumnTranslation.find( std::make_pair( id2, type ) );
-
-        if ( it1 == mColumnTranslation.end() )
-        {
-            Error::Warn( std::cout, "The combination of id " + Util::ToString( id1 ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
-                + "  is not a fitting combination, so cannot be constrained !" );
-
-            return Error::STATUS::FAILED_CONSTR_R;
-        }
-
-        if ( it2 == mColumnTranslation.end() )
-        {
-            Error::Warn( std::cout, "The combination of id " + Util::ToString( id2 ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
-                + "  is not a fitting combination, so cannot be constrained !" );
-
-            return Error::STATUS::FAILED_CONSTR_R;
-        }
-
-        std::vector< U32 > targetColumns;
-        std::vector< F32 > targetCoefficients;
-        targetColumns.push_back( it1->second );
-        targetColumns.push_back( it2->second );
-        targetCoefficients.push_back( 1.0 );
-        targetCoefficients.push_back( -1.0 );
-
-        constraints.push_back( Constraint( targetColumns, targetCoefficients, 0.0 ) );
-    }
-
-    for ( U32 i=0; i < conf.SumConstr(); ++i )
-    {
-        const Configuration::SumConstraint *constr = conf.GetSumConstraint( i );
-       
-        std::vector< U32 > targetColumns;
-        std::vector< F32 > targetCoefficients;
-        for ( U32 j=0; j < constr->locations.size(); j++ )
-        {
-            const std::pair< U32, Configuration::valueType > &pair = constr->locations[i];
-
-            const U32 id = pair.first;
-            const Configuration::valueType type = pair.second;
-
-            std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it = mColumnTranslation.find( std::make_pair( id, type ) );
-
-            if ( it == mColumnTranslation.end() )
-            {
-                Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
-                    + "  is not a fitting combination, so cannot be constrained !" );
-
-                return Error::STATUS::FAILED_CONSTR_R;
-            }
-
-            targetColumns.push_back( it->second );
-            targetCoefficients.push_back( 1.0 );
-        }
-
-        F32 reference = constr->value;
-
-        constraints.push_back( Constraint( targetColumns, targetCoefficients, reference ) );
-    }
-    
-
     //
     //  Construct AX = b
     //
     multiMatrix a( 200, 200 ), b( 200 );
-
-    GenerateMatrices( charges, dipoles, quadrupoles, field, a, b );
-    
-    std::cout << "TTTT " << conf.ValueConstr() << std::endl;
-    
-    AddConstraints( constraints, a, b );
-    
     multiMatrix x(200);
+    
+    //init x
     for ( U32 i=0; i < 200; i++ )
     {
         x(i) = 0.0f;
     } 
-
-    S32 *ipiv = new S32[ 200 ];
-
-    std::cout << "A:  rows; " << a.Rows() << "   Cols; " << a.Columns() << std::endl;
-    std::cout << "B:  rows; " << b.Rows() << "   Cols; " << b.Columns() << std::endl;
-	
-    F64 *abuffer = a.GetBuffer();
-    F64 *bBuffer = b.GetBuffer();
-	
-    for ( U32 i=0; i < a.Rows(); ++i )
-    {
-        for ( U32 j=0; j < a.Columns(); ++j )
-        {
-           printf( "%12.5f", abuffer[ i*a.Columns() + j ] );
-        }
-        
-         printf( "\n" );
-    }
-     printf( "\n" );
-
-     U32 N = charges.size() + dipoles.size() + quadrupoles.size();
-
-    //S32 result = LAPACKE_dgesv( LAPACK_ROW_MAJOR, N, 1, abuffer, N, ipiv, bBuffer, 1 );    
-
-    b.BufferSwap();
     
-    x = b;
+    GenerateMatrices( charges, dipoles, quadrupoles, field, a, b );   
 
-    //Fit
+    FitKernel kernel;
+    
+    if ( constraints.size() > 0 && conf.RespRestr() > 0 )
+    {
+    	Error::Warn( std::cout, "The system currently does not support both constraints and restraints at the same time!" );
+    	
+    	return Error::STATUS::FAILED_UNSUP_PARAM_COMBO;
+    }
+    else if ( constraints.size() > 0 )
+    {
+    	kernel = FitKernel::DGESV;
+    }
+    else if ( conf.RespRestr() > 0 )
+    {
+    	kernel = FitKernel::DGELS;
+    }
+    //switch to default
+    else
+    {
+    	kernel = FitKernel::DGESV;
+    }
+    
+    S32 result;
+    
+    //switch to the normal compute kernel
+    if ( kernel == FitKernel::DGESV )
+    {
+    	Console::Report( std::cout, "[SOLVE_KERNEL]\n" );
+    	Console::Report( std::cout, "\tLAPACKE_DGESV\n" );
+    	Console::Report( std::cout, "[END]" );
+    	
+    	AddConstraints( constraints, a, b );  
+    	
+    	a.Report("MATRIX_A");
+		b.Report("MATRIX_B");
+    	
+    	U32 LWORK = 4 * 3 * a.Columns();  
+    	S32 *ipiv = new S32[ LWORK  ];
+    	
+    	F64 *abuffer = a.GetBuffer();
+		F64 *bBuffer = b.GetBuffer();
+		F64 *xBuffer = x.GetBuffer();
+    	
+    	result = LAPACKE_dgesv( LAPACK_ROW_MAJOR, a.Columns(), 1, abuffer, a.Columns(), ipiv, bBuffer, 1 );    
+    	
+    	delete [] ipiv;
+    	
+    	x = b;
+    }
+    else
+    {
+    	Console::Report( std::cout, "[SOLVE_KERNEL]\n" );
+    	Console::Report( std::cout, "\tLAPACKE_DGELS\n" );
+    	Console::Report( std::cout, "[END]" );
+    	
+    	multiMatrix q( 200, 200 ), c( 200 );
+    	
+    	//AddRestraints( conf, constraints, q, c, mColumnTranslation );
+    	AddRestraints( conf, constraints, a, b, mColumnTranslation );
+    	
+    	a.Report("MATRIX_A");
+		b.Report("MATRIX_B");
+    	
+		F64 *abuffer = a.GetBuffer();
+		F64 *bBuffer = b.GetBuffer();
+		F64 *xBuffer = x.GetBuffer();
+		
+    	result = LAPACKE_dgels( LAPACK_ROW_MAJOR, 'N',  a.Rows(), a.Columns(), 1, abuffer, a.Columns(), bBuffer, 1 );
+
+    	x = b;
+    }
+
+    if ( result != 0 )
+    {
+    	if ( result > 0 )
+    	{
+    		Error::Warn( std::cout, "cannot fit because the generated matrix is signular!" );
+    		
+    		return Error::STATUS::FAILED_FIT;	
+    	}
+    	
+    	if ( result < 0 )
+    	{
+    		Error::Warn( std::cout, "cannot fit because the generated matrix contains an illigal input value!" );
+    		
+    		return Error::STATUS::FAILED_FIT;	
+    	}
+    }
+    
+    //copy to the result buffer
+    x.BufferSwap();
+
+    x.Report("MATRIX_X");
+    
     F32 f=2.541748;
     F32 f1=1.3450351;
 
@@ -695,8 +868,5 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
         stride++;   
     }
     
-    Report rp( conf, field );
-    rp.WriteToStream( std::cout );
-
     return Error::STATUS::OK;
 }

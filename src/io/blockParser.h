@@ -14,7 +14,7 @@ class BlockParser
 {
 public:
 	
-	BlockParser( const std::string &file  );	
+	BlockParser( const std::vector< std::string >  &files  );	
 	
 	const Block * GetBlock( const std::string &block ) const;
 	

@@ -3,6 +3,10 @@
 
 #include <string>
 #include <sstream>
+#include <stdio.h>
+#include <cstring>
+
+#include "../common/types.h"
 
 namespace Util
 {
@@ -26,6 +30,19 @@ namespace Util
     float FromString< float >( const std::string &str );
     
 	std::string Trim(const std::string &s);
+	
+	U32 ToFlags( const std::string &flagString );
+	std::string FromFlags( const U32 convFlags );
+	
+	template< class T > 
+	T* CloneBuffer( T *in, U32 length )
+	{
+		T *newb = new T[ length ];
+		
+		memcpy( newb, in, length * sizeof( T ) );
+		
+		return newb;
+	}
 }
 
 

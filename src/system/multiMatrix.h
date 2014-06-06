@@ -4,6 +4,7 @@
 #include <vector>
 #include <fstream>
 #include <stdio.h>
+#include <string>
 
 #include "../common/types.h"
 
@@ -19,7 +20,7 @@ public:
 
     F64 & operator()( U32 i );  
 
-    void Debug( std::ostream &stream );
+    void Report( const std::string& blockName );
 
     F64 * GetBuffer();
 

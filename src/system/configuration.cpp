@@ -7,17 +7,8 @@
 
 #include "../util/util.h"
 
-Configuration::Configuration( const std::string &file )
-{
-    BlockParser bp( file );
-
-    mStatus = bp.GetStatus();
-    if ( Error::FAILED( mStatus ) )
-    {
-        Error::Warn( std::cout, std::string( "file ") + file + " was not present!" );
-        return;
-    }                                   
-
+Configuration::Configuration( const BlockParser &bp )
+{                              
     mStatus = ReadSites( bp );
     if ( Error::FAILED( mStatus ) )
     {
@@ -49,6 +40,12 @@ Configuration::Configuration( const std::string &file )
     }
     
     mStatus = ReadSumConstraints( bp );
+    if ( Error::FAILED( mStatus ) )
+    {
+    	return;
+    }
+    
+    mStatus = ReadRespRestraints( bp );
     if ( Error::FAILED( mStatus ) )
     {
     	return;
@@ -341,16 +338,7 @@ Error::STATUS Configuration::ReadFitSites( const BlockParser &bp )
     	U32 id = block->GetToken( index )->GetValue< U32 >();
     	std::string fitflags = block->GetToken( index+1 )->GetToken();
 
-        U32 convFlags = 0;
-        for ( U32 j=0; j < fitflags.size(); ++j )
-        {
-            char flag = fitflags[j];
-
-            if ( flag == '1' )
-            {
-                convFlags += ( 1 << j );
-            }
-        }
+        U32 convFlags = Util::ToFlags( fitflags );
         
         //find the id 
         std::map< U32, U32 >::iterator it = mIndices.find( id );
@@ -402,16 +390,7 @@ Error::STATUS Configuration::ReadPermSites( const BlockParser &bp )
     	U32 id = block->GetToken( index )->GetValue< U32 >();
     	std::string fitflags = block->GetToken( index+1 )->GetToken();
 
-        U32 convFlags = 0;
-        for ( U32 j=0; j < fitflags.size(); ++j )
-        {
-            char flag = fitflags[j];
-
-            if ( flag == '1' )
-            {
-                convFlags += ( 1 << j );
-            }
-        }
+        U32 convFlags = Util::ToFlags( fitflags );
         
         //find the id 
         std::map< U32, U32 >::iterator it = mIndices.find( id );
@@ -427,7 +406,7 @@ Error::STATUS Configuration::ReadPermSites( const BlockParser &bp )
         
         for ( U32 j=0; j <  9; ++j )
         {
-        	F32 val = block->GetToken( index+2+j )->GetValue< U32 >();	
+        	F32 val = block->GetToken( index+2+j )->GetValue< F32 >();	
         	
         	mFitSites[ it->second ].SetPermValue( static_cast< valueType >( j ), val );
         }
@@ -469,20 +448,11 @@ Error::STATUS Configuration::ReadValueConstraints( const BlockParser &bp )
     	U32 id = block->GetToken( index )->GetValue< U32 >();
     	
     	std::string fitflags = block->GetToken( index+1 )->GetToken();
-        U32 convFlags = 0;
-        for ( U32 j=0; j < fitflags.size(); ++j )
-        {
-            char flag = fitflags[j];
-
-            if ( flag == '1' )
-            {
-                convFlags += ( 1 << j );
-            }
-        }
+        U32 convFlags = Util::ToFlags( fitflags );
         
         for ( U32 j=0; j <  9; ++j )
         {
-        	F32 val = block->GetToken( index+2+j )->GetValue< U32 >();	
+        	F32 val = block->GetToken( index+2+j )->GetValue< F32 >();	
         	
         	if ( convFlags & ( 1 << j ) )
         	{
@@ -547,16 +517,7 @@ Error::STATUS Configuration::ReadSymConstraints( const BlockParser &bp )
     	}
     	
     	std::string fitflags = block->GetToken( index+1+indices )->GetToken();
-        U32 convFlags = 0;
-        for ( U32 j=0; j < fitflags.size(); ++j )
-        {
-            char flag = fitflags[j];
-
-            if ( flag == '1' )
-            {
-                convFlags += ( 1 << j );
-            }
-        }
+        U32 convFlags = Util::ToFlags( fitflags );
     	
         //add the constraints pairwise
     	for ( U32 j=1 ; j < indices; ++j )
@@ -620,27 +581,23 @@ Error::STATUS Configuration::ReadSumConstraints( const BlockParser &bp )
     		return Error::STATUS::FAILED_IO;
     	}
     	
+    	index+=1;
+    	
     	std::vector< std::pair< U32, valueType > > ind;
     	for ( U32 j=0 ; j < indices; ++j )
     	{
     		U32 id = block->GetToken( index )->GetValue< U32 >();
     		
-    		std::string fitflags = block->GetToken( index+1 )->GetToken();
-			U32 convFlags = 0;
-			for ( U32 j=0; j < fitflags.size(); ++j )
-			{
-				char flag = fitflags[j];
-	
-				if ( flag == '1' )
-				{
-					convFlags += ( 1 << j );
-				}
-			}
+    		std::string fitflags = block->GetToken( index+1 )->GetToken();		
+			U32 convFlags = Util::ToFlags( fitflags );
 			
 			for ( U32 n=0; n < 9; ++n )
     		{
     			if ( convFlags & ( 1 << n ) )
+    			{
     				ind.push_back( std::pair< U32, valueType >( id, static_cast< valueType >( n ) ) );
+    				//std::cout << id << " " << fitflags << std::endl;
+    			}
     		}
     		
     		index += 2;
@@ -649,7 +606,7 @@ Error::STATUS Configuration::ReadSumConstraints( const BlockParser &bp )
     	F32 value = block->GetToken( index )->GetValue< F32 >();
     	
 
-        if ( ind.size() > 0 )
+        if ( ind.size() > 0 )         
             mSumConstraints.push_back( SumConstraint( ind, value ) );
     	
     	index += 1;
@@ -676,7 +633,7 @@ Error::STATUS Configuration::ReadRespRestraints( const BlockParser &bp )
 
     U32 constraints = block->GetToken( 0 )->GetValue< U32 >();
 
-    if ( block->Size() != ( 1 + ( constraints * 11 ) ) )
+    if ( block->Size() != ( 1 + ( constraints * ( 2 + ( 9 + 9 ) ) ) ) )
     {
         Error::Warn( std::cout, "block [RESP] did not have the right amount of arguments based on the size indicator !" );
         return Error::STATUS::FAILED_IO;
@@ -689,28 +646,20 @@ Error::STATUS Configuration::ReadRespRestraints( const BlockParser &bp )
     	U32 id = block->GetToken( index )->GetValue< U32 >();
     	
     	std::string fitflags = block->GetToken( index+1 )->GetToken();
-        U32 convFlags = 0;
-        for ( U32 j=0; j < fitflags.size(); ++j )
-        {
-            char flag = fitflags[j];
-
-            if ( flag == '1' )
-            {
-                convFlags += ( 1 << j );
-            }
-        }
+        U32 convFlags = Util::ToFlags( fitflags );
         
-        for ( U32 j=0; j <  9; ++j )
+        for ( U32 j=0; j < 9; ++j )
         {
-        	F32 val = block->GetToken( index+2+j )->GetValue< U32 >();	
+        	F32 val = block->GetToken( index+2+j )->GetValue< F32 >();	
+        	F32 intensity = block->GetToken( index+2+j+9 )->GetValue< F32 >();	
         	
         	if ( convFlags & ( 1 << j ) )
         	{
-        		mRespConstraints.push_back( RespRestraint( static_cast< valueType >( j ), id, val ) );	
+        		mRespConstraints.push_back( RespRestraint( static_cast< valueType >( j ), id, val, intensity ) );	
         	}
         }
 
-    	index += 11;
+    	index += 20;
     }
     
     return Error::STATUS::OK;

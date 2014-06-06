@@ -3,13 +3,33 @@
 
 #include "fitting/fitter.h"
 #include "error/error.h"
+#include "io/blockParser.h"
+#include "io/block.h"
 
+#include "testing/testing.h"
+
+#include "system/report.h"
 
 #include <iostream>
 
-int main()
+int main( int argc, char** argv)
 {	
-    Field field( "../testInput/basicDipole/1007_esp.in" );
+	std::vector< std::string > arguments;
+	arguments.reserve( argc );
+	for ( U32 i=0; i < argc; ++i )
+	{
+		arguments.push_back( std::string( argv[i] ) );
+	}
+	
+	BlockParser bp( arguments );
+
+    if ( Error::FAILED( bp.GetStatus() ) )
+    {
+        Error::Warn( std::cout, "Unable to open all presented files!" );
+        return 1;
+    }  
+    
+    Field field( bp );
     
     if ( Error::FAILED( field.GetStatus() ) )
     {
@@ -20,7 +40,7 @@ int main()
     	return 1;
     }
     
-    Configuration conf( "../testInput/basicDipole/1007.fsite" );
+    Configuration conf( bp );
 
     if ( Error::FAILED( conf.GetStatus() ) )
     {
@@ -32,7 +52,17 @@ int main()
     }
     
     conf.Raport( std::cout );
-                                   
+          
+    //init the permanent field
+    if ( Error::FAILED( field.SetPermField( conf ) ) )
+    {
+    	Error::Warn( std::cout, "Unable to set up the permanent field contributions, fatal error!" );
+    	
+        system("pause");
+
+        return 1;	
+    }
+    
     if ( Error::FAILED( Fitter::FitSites( conf, field ) ) )
     {
     	Error::Warn( std::cout, "Unable to fit the selected sites, fatal error!" );
@@ -42,7 +72,16 @@ int main()
     	return 1;
     }
     
-    system("pause");
+    Report rp( conf, field );
+    rp.WriteToStream( std::cout );
+    
+    //test the final values to fortran values if a test block was given
+    if ( Error::FAILED(  Testing::CompareToF( conf, bp ) ) )
+    {
+    	Error::Warn( std::cout, "System failed the unit test, see output!" );
+
+    	return 1;		
+    }
 
 	return 0;
 }

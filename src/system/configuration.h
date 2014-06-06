@@ -64,13 +64,14 @@ public:
     
     struct RespRestraint
     {
-    	RespRestraint(  const valueType t, const U32 id, const F32 v ) :
-    	type( t ), ID( id ), refValue( v )
+    	RespRestraint(  const valueType t, const U32 id, const F32 v, const F32 i ) :
+    	type( t ), ID( id ), refValue( v ), intensity( i )
     	{}
     	
     	const valueType type;
     	const U32 		ID;
     	const F32 	    refValue;
+    	const F32  		intensity;
     };
     
     struct FitSite
@@ -105,7 +106,7 @@ public:
         F32 permValues[9];
     };
 
-    Configuration( const std::string &file );
+    Configuration( const BlockParser & );
 
     const Error::STATUS GetStatus() const;
 
