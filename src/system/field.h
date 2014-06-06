@@ -21,16 +21,16 @@ public:
     
     Error::STATUS SetPermField( const Configuration &conf );
     
-    const Error::STATUS GetStatus() const;
+    Error::STATUS GetStatus() const;
 
     U32 Size() const;
     const Vec3 & GetFieldPosition( const U32 index ) const;
     
-    const F64 GetFieldPotential( const U32 index ) const;
-    const F64 GetFieldDiff( const U32 index ) const;
-    const F64 GetPermPotential( const U32 index ) const;
+    F64 GetFieldPotential( const U32 index ) const;
+    F64 GetFieldDiff( const U32 index ) const;
+    F64 GetPermPotential( const U32 index ) const;
     
-    const F64 GetFieldStats( const Configuration &conf ) const;
+    F64 GetFieldStats( const Configuration &conf ) const;
     
 private:
 

@@ -9,14 +9,19 @@ do
         echo -e "\nRUNNING TEST; \n\t$name\n";
         echo -e "__________________________________________\n";
 	
-	../bin/x64/fieldfit $arguments;
+	../bin/x64/fieldfit $arguments > error.out
 	
 	if (( $? == 1 )); then
 
-		 echo -e "FAILED!\n";
+		grep . error.out;
+
+		echo -e "<<<<<  FAILED TEST! >>>>\n";
 
 		exit 1;
 	fi
+
+	rm error.out;	
+
 	echo -e "Finished!";
 
 done < test.in

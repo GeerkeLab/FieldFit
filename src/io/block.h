@@ -9,6 +9,9 @@
 #include "../common/types.h"
 #include "../util/util.h"
 
+/*
+**	The block class contains a series of tokens corresponding to a single block
+*/
 class Block
 {
 public:

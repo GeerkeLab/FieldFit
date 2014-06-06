@@ -43,8 +43,15 @@ F64 Fitter::DelComp( const Configuration::valueType type, const Vec3 &i, const V
     F64 delY = i.GetY() - j.GetY();
     F64 delZ = i.GetZ() - j.GetZ();
 
+    //
+	//	Computes the numerator of Cij based on its type
+	//
     switch( type )
     {
+    case Configuration::valueType::charge:
+    	
+    	return 1.0;
+    	
     case Configuration::valueType::dipoleX:
     	
         return delX;
@@ -84,7 +91,12 @@ F64 Fitter::DelComp( const Configuration::valueType type, const Vec3 &i, const V
 Error::STATUS Fitter::TabulateSites( const Configuration &conf, std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation )
 {    
     U32 column = 0;
-    
+   
+    //
+	//	Iterate over all sites and types and collect them in formatted charges, dipole and quadrupole arrays
+	//  We also connect ID,Type - Column information so that we can easily add constraints and restraints
+	//
+	
     for ( U32 i=0; i < conf.Size(); ++i )
     {
         const Configuration::FitSite *site = conf.GetSite( i );
@@ -179,6 +191,11 @@ Error::STATUS Fitter::TabulateSites( const Configuration &conf, std::vector< Cha
 
 Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vector< Constraint > & constraints, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation )
 {
+	//
+	//	We now convert different constraints to one general format
+	//  For dipoles and qpols convert input units to compute units using constants 2.541748 and 1.3450351
+	//
+	
 	for ( U32 i=0; i < conf.ValueConstr(); ++i )
     {
     	const Configuration::ValueConstraint *constr = conf.GetValueConstraint( i );
@@ -317,6 +334,36 @@ Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vecto
 
 Error::STATUS Fitter::GenerateMatrices( const std::vector< ChargeSite > &charges,  const std::vector< DipoleSite > &dipoles, const std::vector< QuadrupoleSite > &quadrupoles, const Field &field, multiMatrix &a, multiMatrix &b )
 {
+	//
+	//	Generate a A( N x N ) matrix and B( N ) matrix set that fully describes the influences of all sites ( with all selected types ) on all grid points
+	//  Most inputs have 130.000 gridpoints so obviously we cannot make a 130k x 130k matrix, so instead we merge all potential sites/
+	//
+	//	For n gridpoints;
+	//
+	//	Lets assume we are dealing with a charge i and a gridpoint j; The potential on j will then be ( q / dist( i, j ) );
+	//  This equation can be split into an constant coefficient C = 1.0 / dist( i, j )  and a charge qi.
+	//  The pot on j is then  pt = C * qi;
+	//
+	//  We can now use this given to express the sum of potential on all gridpoints by the charge qi.
+	//
+	//	totalPotQi =  ( SUM( j to n ){ 1.0 / dist( i, j ) } )  * qi;
+	//  the constant coefficent that we can extract is C = SUM( j to n ){ 1.0 / dist( i, j ) }        
+	//
+	//  The same can be done for dipoles and quadrupoles resulting in a linear system of  q1 ... qk, d1 ... dl, q1 ... qm
+	//  where k = total unique charge site, l = total unique dipole direction sites and m = total unique qpol direction sites
+	//
+	//	this system has coefficients C1 ... Ck, C1 ... Cl, C1 ... Cm 
+	//  now this results in only one row for the matrix while we need N rows with rank( N )  ( unique )
+	//  so instead we take for the coefficients for row I and column J
+	//  C'_IJ = C_I * C_J;
+	//
+	//	Then we also have to adjust the value in B(i) to 
+	//  B'(I) = SUM( j to n ){ potential( j ) / C_I }  
+	//
+	//	This trick allows use to describe the system in a N X N matrix, where N = number of fit variables
+	//  while maintaining rank( N );
+	//
+	
     //
     // Charges
     //
@@ -614,6 +661,10 @@ Error::STATUS Fitter::AddConstraints( std::vector< Constraint > &constraints, mu
 	U32 strideRow = a.Rows();
 	
 	//add the additional rows and columns to accomidate the extra constraints;
+	
+	//
+    //   Init the extra rows and colums to zero
+    //
 	for ( U32 i=0; i < a.Rows(); ++i )
 	{
 		for ( U32 j=0; j < constraints.size(); ++j )
@@ -657,6 +708,10 @@ Error::STATUS Fitter::AddRestraints( const Configuration &conf, std::vector< Con
 {
 	U32 rowStride = q.Rows();
 	
+	
+	//
+    //   Init the extra rows to zero
+    //
 	for ( U32 i=0; i < ( mColumnTranslation.size() + constraints.size() ); ++i )
 	{
 		for ( U32 j=0; j < ( mColumnTranslation.size() + constraints.size() ); ++j )
@@ -667,6 +722,9 @@ Error::STATUS Fitter::AddRestraints( const Configuration &conf, std::vector< Con
 		c( rowStride+i ) = 0.0;
 	}
 	
+	//
+    //   Add the resp force constants to the diagonal of the extra rows
+    //
 	for ( U32 i=0; i < conf.RespRestr(); ++i )
 	{
 		const Configuration::RespRestraint *restr = conf.GetRespRestraint( i );
@@ -734,10 +792,7 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     std::vector< Constraint > constraints;
     
     TabulateConstraints( conf, constraints,  mColumnTranslation );
-    
-    //
-    //  Construct AX = b
-    //
+     
     multiMatrix a( 200, 200 ), b( 200 );
     multiMatrix x(200);
     
@@ -747,8 +802,15 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
         x(i) = 0.0f;
     } 
     
+    //
+    //  Construct AX = b
+    //
     GenerateMatrices( charges, dipoles, quadrupoles, field, a, b );   
 
+    
+    //
+    //  Determine what kernel from lapack to use, based on the availability of constraints and restraints
+    //
     FitKernel kernel;
     
     if ( constraints.size() > 0 && conf.RespRestr() > 0 )
@@ -780,6 +842,7 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     	Console::Report( std::cout, "\tLAPACKE_DGESV\n" );
     	Console::Report( std::cout, "[END]" );
     	
+    	//add the constraints to matrices and b
     	AddConstraints( constraints, a, b );  
     	
     	a.Report("MATRIX_A");
@@ -790,7 +853,6 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     	
     	F64 *abuffer = a.GetBuffer();
 		F64 *bBuffer = b.GetBuffer();
-		F64 *xBuffer = x.GetBuffer();
     	
     	result = LAPACKE_dgesv( LAPACK_ROW_MAJOR, a.Columns(), 1, abuffer, a.Columns(), ipiv, bBuffer, 1 );    
     	
@@ -798,6 +860,7 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     	
     	x = b;
     }
+    //switch to the LSE compute kernel
     else
     {
     	Console::Report( std::cout, "[SOLVE_KERNEL]\n" );
@@ -806,7 +869,7 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     	
     	multiMatrix q( 200, 200 ), c( 200 );
     	
-    	//AddRestraints( conf, constraints, q, c, mColumnTranslation );
+    	//add the restraints to matrices and b
     	AddRestraints( conf, constraints, a, b, mColumnTranslation );
     	
     	a.Report("MATRIX_A");
@@ -814,13 +877,24 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     	
 		F64 *abuffer = a.GetBuffer();
 		F64 *bBuffer = b.GetBuffer();
-		F64 *xBuffer = x.GetBuffer();
 		
     	result = LAPACKE_dgels( LAPACK_ROW_MAJOR, 'N',  a.Rows(), a.Columns(), 1, abuffer, a.Columns(), bBuffer, 1 );
 
     	x = b;
     }
 
+    //
+    //	Test the output from lapack; If result < 0; then 
+    //                                   
+    // 									illegal input, 
+    //
+    // 							      else if result > 0; then 
+    // 							        
+    // 							        singular matrix 
+    // 							       
+    // 							      else OK!
+    //
+    
     if ( result != 0 )
     {
     	if ( result > 0 )
@@ -838,15 +912,18 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     	}
     }
     
-    //copy to the result buffer
+    // Copy to the result buffer
+    // For lapack we needed c-style arrays so now we copy it back to my easy matrix format
     x.BufferSwap();
 
     x.Report("MATRIX_X");
     
+    //convertion constants for the correct output format
     F32 f=2.541748;
     F32 f1=1.3450351;
 
     U32 stride = 0;
+    //Set the fitted results in the configuration
     for ( U32 i=0; i < charges.size(); ++i )
     {
         conf.GetSiteMod( charges[i].confIndex )->SetValue( charges[i].type, x(stride) );

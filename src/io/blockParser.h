@@ -10,6 +10,9 @@
 
 class Block;
 
+/*
+**	Class to parse the blocks within a series of files
+*/
 class BlockParser
 {
 public:
@@ -18,7 +21,7 @@ public:
 	
 	const Block * GetBlock( const std::string &block ) const;
 	
-	const Error::STATUS GetStatus() const;
+	Error::STATUS GetStatus() const;
 	      
 	void Debug();
 	

@@ -56,7 +56,7 @@ Field::Field( const BlockParser &bp )
     mStatus = Error::STATUS::OK;
 }
 
-const Error::STATUS Field::GetStatus() const
+Error::STATUS Field::GetStatus() const
 {
     return mStatus;
 }
@@ -71,17 +71,17 @@ const Vec3 & Field::GetFieldPosition( const U32 index ) const
     return mFieldPositions[ index ];
 }
 
-const F64 Field::GetFieldPotential( const U32 index ) const
+F64 Field::GetFieldPotential( const U32 index ) const
 {
     return mFieldPotential[ index ];
 }
 
-const F64 Field::GetFieldDiff( const U32 index ) const
+F64 Field::GetFieldDiff( const U32 index ) const
 {
 	return GetFieldPotential( index ) - GetPermPotential( index );
 }
 
-const F64 Field::GetPermPotential( const U32 index ) const
+F64 Field::GetPermPotential( const U32 index ) const
 {
 	return mPermPotential[ index ];
 }
@@ -96,7 +96,6 @@ F64 Field::GetGridPointPotential( const Vec3 &gridPoint, const Configuration &co
 	for ( U32 i=0; i < conf.Size(); ++i )
     {
         const Configuration::FitSite *site = conf.GetSite( i );
-        const U32 fitFlags = site->fitFlags;
         const Vec3 & pos   = site->position;
         const U32 permFlags = site->permFlags;
         
@@ -158,7 +157,7 @@ Error::STATUS Field::SetPermField( const Configuration &conf )
 	return Error::STATUS::OK;
 }
 
-const F64 Field::GetFieldStats( const Configuration &conf ) const
+F64 Field::GetFieldStats( const Configuration &conf ) const
 {
 	F64 chiSqr = 0.0;
 	

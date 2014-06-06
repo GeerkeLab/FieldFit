@@ -16,7 +16,7 @@ int main( int argc, char** argv)
 {	
 	std::vector< std::string > arguments;
 	arguments.reserve( argc );
-	for ( U32 i=0; i < argc; ++i )
+	for ( S32 i=0; i < argc; ++i )
 	{
 		arguments.push_back( std::string( argv[i] ) );
 	}

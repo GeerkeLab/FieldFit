@@ -4,6 +4,9 @@
 #include <vector>
 #include <string>
 
+/*
+**	Class to transform a string containing whitespace, tabs and tokens to a vector of tokens;
+*/
 class Tokenizer
 {
 public:

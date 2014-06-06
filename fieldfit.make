@@ -19,7 +19,7 @@ ifeq ($(config),release_x64)
   INCLUDES +=
   FORCE_INCLUDE +=
   ALL_CPPFLAGS += $(CPPFLAGS) -MMD -MP $(DEFINES) $(INCLUDES)
-  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -m64 -Wall -Wextra -O3 -msse2 -ffast-math -std=c++11
+  ALL_CFLAGS += $(CFLAGS) $(ALL_CPPFLAGS) $(ARCH) -m64 -Wall -Wextra -O3 -msse2 -ffast-math -std=c++11 -W
   ALL_CXXFLAGS += $(CXXFLAGS) $(ALL_CFLAGS)
   ALL_RESFLAGS += $(RESFLAGS) $(DEFINES) $(INCLUDES)
   LIBS += -llapack -lblas -llapacke
@@ -57,6 +57,7 @@ OBJECTS := \
 	$(OBJDIR)/configuration.o \
 	$(OBJDIR)/field.o \
 	$(OBJDIR)/multiMatrix.o \
+	$(OBJDIR)/report.o \
 	$(OBJDIR)/testing.o \
 	$(OBJDIR)/util.o \
 
@@ -168,6 +169,9 @@ $(OBJDIR)/field.o: src/system/field.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 $(OBJDIR)/multiMatrix.o: src/system/multiMatrix.cpp
+	@echo $(notdir $<)
+	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
+$(OBJDIR)/report.o: src/system/report.cpp
 	@echo $(notdir $<)
 	$(SILENT) $(CXX) $(ALL_CXXFLAGS) $(FORCE_INCLUDE) -o "$@" -MF $(@:%.o=%.d) -c "$<"
 $(OBJDIR)/testing.o: src/testing/testing.cpp

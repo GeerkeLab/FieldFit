@@ -77,7 +77,7 @@ public:
     struct FitSite
     {	
         FitSite( const U32 id, const std::string &n, const F32 charge, const F32 x, const F32 y, const F32 z ) :
-            ID( id ), name( n ), atomicCharge( charge ), position( x, y, z ), fitFlags( 0 ), permFlags( 0 )
+            ID( id ), name( n ), position( x, y, z ), atomicCharge( charge ), fitFlags( 0 ), permFlags( 0 )
         {
             for ( U32 i=0; i < 9; ++i )
             {
@@ -108,7 +108,7 @@ public:
 
     Configuration( const BlockParser & );
 
-    const Error::STATUS GetStatus() const;
+    Error::STATUS GetStatus() const;
 
     U32 Size() const;
     

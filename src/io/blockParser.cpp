@@ -30,7 +30,7 @@ const Block * BlockParser::GetBlock( const std::string &block ) const
 	return &it->second;
 }
 	
-const Error::STATUS BlockParser::GetStatus() const
+Error::STATUS BlockParser::GetStatus() const
 {
 	return mStatus;
 }

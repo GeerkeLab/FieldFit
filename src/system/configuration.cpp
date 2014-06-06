@@ -54,7 +54,7 @@ Configuration::Configuration( const BlockParser &bp )
     mStatus = Error::STATUS::OK;
 }
 
-const Error::STATUS Configuration::GetStatus() const
+Error::STATUS Configuration::GetStatus() const
 {
     return mStatus;
 }
@@ -596,7 +596,6 @@ Error::STATUS Configuration::ReadSumConstraints( const BlockParser &bp )
     			if ( convFlags & ( 1 << n ) )
     			{
     				ind.push_back( std::pair< U32, valueType >( id, static_cast< valueType >( n ) ) );
-    				//std::cout << id << " " << fitflags << std::endl;
     			}
     		}
     		
@@ -610,6 +609,12 @@ Error::STATUS Configuration::ReadSumConstraints( const BlockParser &bp )
             mSumConstraints.push_back( SumConstraint( ind, value ) );
     	
     	index += 1;
+    }
+    
+    if ( block->Size() != index )
+    {
+        Error::Warn( std::cout, "block [SUMCONSTR] contained more statements than expected based on the size indicator!" );
+        return Error::STATUS::FAILED_IO;
     }
     
     return Error::STATUS::OK;

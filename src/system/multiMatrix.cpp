@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-multiMatrix::multiMatrix( U32 rows, U32 rowSize /*= 1 */ ) : mHeight( 0 ), mWidth( 0 )
+multiMatrix::multiMatrix( U32 rows, U32 rowSize /*= 1 */ ) : mWidth( 0 ), mHeight( 0 )
 {
     mInternalMatrix.resize( rows );
 

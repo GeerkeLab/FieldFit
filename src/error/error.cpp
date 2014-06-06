@@ -6,15 +6,6 @@ namespace Console
 	{
 		stream << msg.c_str() << std::endl;
 	}
-	
-	void Debug( std::ostream &stream, const std::string &msg )
-    {
-    #ifdef USE_REPORTING
-
-        stream << msg << std::endl;
-
-    #endif
-    }
 }
 
 namespace Error
