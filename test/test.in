@@ -1,0 +1,5 @@
+TEST_FITTING_CHARGES      test_fCharges/test.field test_fCharges/test.fsite test_fCharges/test.fortran
+TEST_FITTING_DIPOLES      test_fDipoles/test.field test_fDipoles/test.fsite test_fDipoles/test.fortran
+TEST_FITTING_QUADRUPOLES  test_fQuadrupoles/test.field test_fQuadrupoles/test.fsite test_fQuadrupoles/test.fortran
+TEST_FITTING_CHARGES_PERM test_fCharges_perm/test.field test_fCharges_perm/test.fsite test_fCharges_perm/test.fortran
+TEST_FITTING_DIPOLES_PERM test_fDipoles_perm/test.field test_fDipoles_perm/test.fsite test_fDipoles_perm/test.fortran
