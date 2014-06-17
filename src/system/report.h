@@ -14,7 +14,7 @@ class Report
 {
 public:
 
-    Report( const Configuration &conf, const Field &field );
+    Report( const Configuration &conf, const Field &field, const bool verbose );
 
     void WriteToStream( std::ostream &stream );
 

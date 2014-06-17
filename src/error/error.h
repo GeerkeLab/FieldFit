@@ -33,7 +33,8 @@ namespace Error
 		FAILED_CONSTR_R = 4,
 		FAILED_FIT = 5,
 		FAILED_UNSUP_PARAM_COMBO = 6,
-		FAILED_FTEST = 7
+		FAILED_FTEST = 7,
+		FAILED_COMMAND_PARSE = 8
 	};
 	
 	/*

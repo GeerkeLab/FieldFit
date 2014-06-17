@@ -376,16 +376,16 @@ Error::STATUS Configuration::ReadPermSites( const BlockParser &bp )
 
     U32 permSites = block->GetToken( 0 )->GetValue< U32 >();
 
-    if ( block->Size() != ( 1 + ( permSites * 11 ) ) )
-    {
-        Error::Warn( std::cout, "block [PERMSITES] did not have the right amount of arguments based on the size indicator !" );
-        return Error::STATUS::FAILED_IO;
-    }
-
     U32 index = 1;
     
     for ( U32 i=0; i < permSites; ++i )
     {
+    	//test if there is enough space for at least the id and flags
+    	if ( block->Size() < ( index + 2 ) )
+		{
+			Error::Warn( std::cout, "block [PERMSITES] did not have the right amount of arguments based on the size indicator !"  );
+			return Error::STATUS::FAILED_IO;
+		}
     	
     	U32 id = block->GetToken( index )->GetValue< U32 >();
     	std::string fitflags = block->GetToken( index+1 )->GetToken();
@@ -397,22 +397,42 @@ Error::STATUS Configuration::ReadPermSites( const BlockParser &bp )
         
         if ( it == mIndices.end() )
         {
-        	Error::Warn( std::cout, "block [fitsites] contains an index ( "+Util::ToString( id )+
+        	Error::Warn( std::cout, "block [PERMSITES] contains an index ( "+Util::ToString( id )+
         		                    " ) that was not present in the sites definition!" );
         	return Error::STATUS::FAILED_IO;
         }
         
         mFitSites[ it->second ].permFlags = convFlags;
         
+        //shift by 2
+        index += 2;
+        
         for ( U32 j=0; j <  9; ++j )
         {
-        	F32 val = block->GetToken( index+2+j )->GetValue< F32 >();	
-        	
-        	mFitSites[ it->second ].SetPermValue( static_cast< valueType >( j ), val );
+        	//test if this type if active
+        	if ( convFlags & ( 1 << j ) )
+        	{
+        		if ( block->Size() <= ( index ) )
+				{
+					Error::Warn( std::cout, "block [PERMSITES] contains an index ( "+Util::ToString( id )+
+											" ) that does not contain enough perm values!" );
+					return Error::STATUS::FAILED_IO;
+				}
+        		
+				F32 val = block->GetToken( index )->GetValue< F32 >();	
+				
+				mFitSites[ it->second ].SetPermValue( static_cast< valueType >( j ), val );
+				
+				index += 1;
+        	}
         }
-        
-    	index += 11;
     }
+    
+    if ( index != block->Size() )
+	{
+		Error::Warn( std::cout, "block [PERMSITES] has more arguments than expected, based on the size indicator!"  );
+       	return Error::STATUS::FAILED_IO;
+	}
     
     return Error::STATUS::OK;
 }
@@ -435,33 +455,49 @@ Error::STATUS Configuration::ReadValueConstraints( const BlockParser &bp )
 
     U32 constraints = block->GetToken( 0 )->GetValue< U32 >();
 
-    if ( block->Size() != ( 1 + ( constraints * 11 ) ) )
-    {
-        Error::Warn( std::cout, "block [VALUECONSTR] did not have the right amount of arguments based on the size indicator !" );
-        return Error::STATUS::FAILED_IO;
-    }
-
     U32 index = 1;
 	
     for ( U32 i=0; i < constraints; ++i )
     {
+    	if ( block->Size() < ( index + 2 ) )
+		{
+			Error::Warn( std::cout, "block [VALUECONSTR] did not have the right amount of arguments based on the size indicator !"  );
+        	return Error::STATUS::FAILED_IO;
+		}
+    	
     	U32 id = block->GetToken( index )->GetValue< U32 >();
     	
     	std::string fitflags = block->GetToken( index+1 )->GetToken();
         U32 convFlags = Util::ToFlags( fitflags );
         
+        //shift by 2
+        index += 2;
+        
         for ( U32 j=0; j <  9; ++j )
         {
-        	F32 val = block->GetToken( index+2+j )->GetValue< F32 >();	
-        	
+        	//test if this type if active
         	if ( convFlags & ( 1 << j ) )
         	{
+        		if ( block->Size() <= ( index ) )
+				{
+					Error::Warn( std::cout, "block [VALUECONSTR] contains an index ( "+Util::ToString( id )+
+											" ) that does not contain enough constr values!" );
+					return Error::STATUS::FAILED_IO;
+				}
+        		
+        		F32 val = block->GetToken( index )->GetValue< F32 >();	
         		mValueConstraints.push_back( ValueConstraint( static_cast< valueType >( j ), id, val ) );	
+
+        		index += 1;
         	}
         }
-
-    	index += 11;
     }
+    
+    if ( index != block->Size() )
+	{
+		Error::Warn( std::cout, "block [VALUECONSTR] has more arguments than expected, based on the size indicator!"  );
+       	return Error::STATUS::FAILED_IO;
+	}
     
     return Error::STATUS::OK;
 }
@@ -510,6 +546,7 @@ Error::STATUS Configuration::ReadSymConstraints( const BlockParser &bp )
     		return Error::STATUS::FAILED_IO;
     	}
     	
+    	//first find all indices and types involved
     	std::vector< U32 > ind;
     	for ( U32 j=0 ; j < indices; ++j )
     	{
@@ -519,17 +556,24 @@ Error::STATUS Configuration::ReadSymConstraints( const BlockParser &bp )
     	std::string fitflags = block->GetToken( index+1+indices )->GetToken();
         U32 convFlags = Util::ToFlags( fitflags );
     	
-        //add the constraints pairwise
-    	for ( U32 j=1 ; j < indices; ++j )
+        //convert to an complete intermediate list
+        std::vector< std::pair< U32, valueType > > constraints;
+        for ( U32 j=0 ; j < indices; ++j )
     	{
-    		U32 id1 = ind[j-1];
-    		U32 id2 = ind[j];
-    		
     		for ( U32 n=0; n < 9; ++n )
     		{
     			if ( convFlags & ( 1 << n ) )
-    				mSymConstraints.push_back( SymConstraint( static_cast< valueType >( n ), id1, id2 ) );
+    				constraints.push_back( std::make_pair( ind[j], static_cast< valueType >( n ) ) );		
     		}
+    	}
+        
+        //add the constraints pairwise
+    	for ( U32 j=1 ; j < constraints.size(); ++j )
+    	{
+    		std::pair< U32, valueType > id1 = constraints[j-1];
+    		std::pair< U32, valueType > id2 = constraints[j];
+    		
+    		mSymConstraints.push_back( SymConstraint( id1.second, id2.second, id1.first, id2.first ) );
     	}
     	
     	index += ( 2 + indices );
@@ -638,25 +682,44 @@ Error::STATUS Configuration::ReadRespRestraints( const BlockParser &bp )
 
     U32 constraints = block->GetToken( 0 )->GetValue< U32 >();
 
-    if ( block->Size() != ( 1 + ( constraints * ( 2 + ( 9 + 9 ) ) ) ) )
-    {
-        Error::Warn( std::cout, "block [RESP] did not have the right amount of arguments based on the size indicator !" );
-        return Error::STATUS::FAILED_IO;
-    }
-
     U32 index = 1;
 	
     for ( U32 i=0; i < constraints; ++i )
     {
+    	if ( block->Size() < ( index + 2 ) )
+		{
+			Error::Warn( std::cout, "block [RESP] did not have the right amount of arguments based on the size indicator !"  );
+        	return Error::STATUS::FAILED_IO;
+		}
+    	
     	U32 id = block->GetToken( index )->GetValue< U32 >();
     	
     	std::string fitflags = block->GetToken( index+1 )->GetToken();
         U32 convFlags = Util::ToFlags( fitflags );
         
+        //find the amount of types
+        U32 typesCount = 0;
         for ( U32 j=0; j < 9; ++j )
         {
-        	F32 val = block->GetToken( index+2+j )->GetValue< F32 >();	
-        	F32 intensity = block->GetToken( index+2+j+9 )->GetValue< F32 >();	
+        	if ( convFlags & ( 1 << j ) )
+        		typesCount++;
+        }
+        
+        //shift by 2
+        index += 2;
+        
+        //test for size
+        if ( block->Size() < ( index + ( 2 * typesCount ) ) )
+		{
+			Error::Warn( std::cout, "block [RESP] contains an index ( "+Util::ToString( id )+
+											" ) that does not contain enough reference values and force constants!" );
+        	return Error::STATUS::FAILED_IO;
+		}
+        
+        for ( U32 j=0; j < typesCount; ++j )
+        {
+        	F32 val = block->GetToken( index+j )->GetValue< F32 >();	
+        	F32 intensity = block->GetToken( index+j+typesCount )->GetValue< F32 >();	
         	
         	if ( convFlags & ( 1 << j ) )
         	{
@@ -664,8 +727,14 @@ Error::STATUS Configuration::ReadRespRestraints( const BlockParser &bp )
         	}
         }
 
-    	index += 20;
+    	index += ( 2 * typesCount );
     }
+    
+    if ( index != block->Size() )
+	{
+		Error::Warn( std::cout, "block [RESP] has more arguments than expected, based on the size indicator!"  );
+       	return Error::STATUS::FAILED_IO;
+	}
     
     return Error::STATUS::OK;
 }

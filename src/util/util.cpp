@@ -10,6 +10,17 @@ float Util::FromString( const std::string &str )
     return std::atof( str.c_str() );
 }
 
+std::string Util::AddWhiteSpace( const std::string &str, const U32 totalLength )
+{
+	std::string prefix = "";
+	if ( totalLength > str.size() )
+    {
+    	prefix.resize( totalLength-str.size(), ' ' );
+    }
+        
+    return prefix+str;
+}
+
 std::string Util::Trim(const std::string &s)
 {
     int nSize = s.size();

@@ -43,11 +43,12 @@ public:
     
     struct SymConstraint
     {
-    	SymConstraint( const valueType t, const U32 id1, const U32 id2 ) :
-    	type( t ), ID1( id1 ), ID2( id2 )
+    	SymConstraint( const valueType t1, const valueType t2, const U32 id1, const U32 id2 ) :
+    	type1( t1 ), type2( t2 ), ID1( id1 ), ID2( id2 )
     	{}
     	
-    	const valueType type;
+    	const valueType type1;   
+    	const valueType type2;
     	const U32 ID1;
     	const U32 ID2;
     };

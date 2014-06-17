@@ -245,14 +245,15 @@ Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vecto
     	const Configuration::SymConstraint *constr = conf.GetSymConstraint( i );
     	const U32 id1 = constr->ID1;
     	const U32 id2 = constr->ID2;
-    	const Configuration::valueType type = constr->type;
-
-        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it1 = mColumnTranslation.find( std::make_pair( id1, type ) );
-        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it2 = mColumnTranslation.find( std::make_pair( id2, type ) );
+    	const Configuration::valueType type1 = constr->type1;
+    	const Configuration::valueType type2 = constr->type2;
+    	
+        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it1 = mColumnTranslation.find( std::make_pair( id1, type1 ) );
+        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it2 = mColumnTranslation.find( std::make_pair( id2, type2 ) );
 
         if ( it1 == mColumnTranslation.end() )
         {
-            Error::Warn( std::cout, "The combination of id " + Util::ToString( id1 ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+            Error::Warn( std::cout, "The combination of id " + Util::ToString( id1 ) + " and type " + Util::ToString( static_cast<U32>( type1 ) ) 
                 + "  is not a fitting combination, so cannot be constrained !" );
 
             return Error::STATUS::FAILED_CONSTR_R;
@@ -260,7 +261,7 @@ Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vecto
 
         if ( it2 == mColumnTranslation.end() )
         {
-            Error::Warn( std::cout, "The combination of id " + Util::ToString( id2 ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
+            Error::Warn( std::cout, "The combination of id " + Util::ToString( id2 ) + " and type " + Util::ToString( static_cast<U32>( type2 ) ) 
                 + "  is not a fitting combination, so cannot be constrained !" );
 
             return Error::STATUS::FAILED_CONSTR_R;
@@ -655,7 +656,7 @@ Error::STATUS Fitter::GenerateMatrices( const std::vector< ChargeSite > &charges
     return Error::STATUS::OK;
 }
 
-Error::STATUS Fitter::AddConstraints( std::vector< Constraint > &constraints, multiMatrix &a, multiMatrix &b )
+Error::STATUS Fitter::AddConstraints( std::vector< Constraint > &constraints, multiMatrix &a, multiMatrix &b, const bool addMirror )
 {
 	U32 strideCol = a.Columns();
 	U32 strideRow = a.Rows();
@@ -665,11 +666,15 @@ Error::STATUS Fitter::AddConstraints( std::vector< Constraint > &constraints, mu
 	//
     //   Init the extra rows and colums to zero
     //
-	for ( U32 i=0; i < a.Rows(); ++i )
-	{
-		for ( U32 j=0; j < constraints.size(); ++j )
+    
+    if ( addMirror )
+    {
+		for ( U32 i=0; i < a.Rows(); ++i )
 		{
-			a( i, strideCol+j ) = 0.0;
+			for ( U32 j=0; j < constraints.size(); ++j )
+			{
+				a( i, strideCol+j ) = 0.0;
+			}
 		}
 	}
 	
@@ -694,7 +699,9 @@ Error::STATUS Fitter::AddConstraints( std::vector< Constraint > &constraints, mu
 			F32 cf = constr.matrixCoefficients[j];
 			
 			a( strideRow+i, col ) = cf;
-			a( col, strideRow+i ) = cf;
+			
+			if ( addMirror )
+				a( col, strideRow+i ) = cf;
 		}
 		
 		b( strideRow+i ) = constr.reference;
@@ -703,7 +710,7 @@ Error::STATUS Fitter::AddConstraints( std::vector< Constraint > &constraints, mu
 	return Error::STATUS::OK;
 }
 
-Error::STATUS Fitter::AddRestraints( const Configuration &conf, std::vector< Constraint > &constraints, multiMatrix &q, multiMatrix &c, 
+Error::STATUS Fitter::AddRestraints( const Configuration &conf, multiMatrix &q, multiMatrix &c, 
 	                                 std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation )
 {
 	U32 rowStride = q.Rows();
@@ -712,9 +719,9 @@ Error::STATUS Fitter::AddRestraints( const Configuration &conf, std::vector< Con
 	//
     //   Init the extra rows to zero
     //
-	for ( U32 i=0; i < ( mColumnTranslation.size() + constraints.size() ); ++i )
+	for ( U32 i=0; i < ( mColumnTranslation.size() ); ++i )
 	{
-		for ( U32 j=0; j < ( mColumnTranslation.size() + constraints.size() ); ++j )
+		for ( U32 j=0; j < ( mColumnTranslation.size() ); ++j )
 		{
 			q( rowStride+i, j ) = 0.0;
 		}
@@ -771,7 +778,7 @@ Error::STATUS Fitter::AddRestraints( const Configuration &conf, std::vector< Con
 	return Error::STATUS::OK;
 }
 
-Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
+Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const bool verbose  )
 {
     //
     //  Tabulate
@@ -796,17 +803,13 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     multiMatrix a( 200, 200 ), b( 200 );
     multiMatrix x(200);
     
-    //init x
-    for ( U32 i=0; i < 200; i++ )
-    {
-        x(i) = 0.0f;
-    } 
-    
     //
     //  Construct AX = b
     //
     GenerateMatrices( charges, dipoles, quadrupoles, field, a, b );   
 
+    //init x as b;
+    x = b;
     
     //
     //  Determine what kernel from lapack to use, based on the availability of constraints and restraints
@@ -815,9 +818,10 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     
     if ( constraints.size() > 0 && conf.RespRestr() > 0 )
     {
-    	Error::Warn( std::cout, "The system currently does not support both constraints and restraints at the same time!" );
+    	//Error::Warn( std::cout, "The system currently does not support both constraints and restraints at the same time!" );
+    	//return Error::STATUS::FAILED_UNSUP_PARAM_COMBO;
     	
-    	return Error::STATUS::FAILED_UNSUP_PARAM_COMBO;
+    	kernel = FitKernel::DGGLSE;
     }
     else if ( constraints.size() > 0 )
     {
@@ -843,10 +847,13 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     	Console::Report( std::cout, "[END]" );
     	
     	//add the constraints to matrices and b
-    	AddConstraints( constraints, a, b );  
+    	AddConstraints( constraints, a, b, true );  
     	
-    	a.Report("MATRIX_A");
-		b.Report("MATRIX_B");
+    	if ( verbose )
+    	{
+    		a.Report("MATRIX_A");
+    		b.Report("MATRIX_B");
+    	}
     	
     	U32 LWORK = 4 * 3 * a.Columns();  
     	S32 *ipiv = new S32[ LWORK  ];
@@ -860,6 +867,41 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     	
     	x = b;
     }
+    else if ( kernel == FitKernel::DGGLSE ) 
+    {
+    	Console::Report( std::cout, "[SOLVE_KERNEL]\n" );
+    	Console::Report( std::cout, "\tLAPACKE_DGGLSE\n" );
+    	Console::Report( std::cout, "[END]" );
+    	
+    	//add the restraints to matrices and b
+    	AddRestraints( conf, a, b, mColumnTranslation );
+    	
+    	U32 M = a.Rows();
+    	U32 N = a.Columns();
+    	U32 P = constraints.size();
+    	
+    	multiMatrix c( P , N ), d( P );
+    	
+    	AddConstraints( constraints, c, d, false );
+    	
+    	if ( verbose )
+    	{
+    		a.Report("MATRIX_A");
+    		b.Report("MATRIX_B");
+    		c.Report("MATRIX_C");
+    		d.Report("MATRIX_D");
+    	}
+    
+		F64 *aBuffer = a.GetBuffer();
+		F64 *bBuffer = b.GetBuffer();
+		F64 *cbuffer = c.GetBuffer();
+		F64 *dBuffer = d.GetBuffer();
+		F64 *xBuffer = x.GetBuffer();
+		
+		result = LAPACKE_dgglse( LAPACK_ROW_MAJOR, M, N, P, aBuffer, N, cbuffer, 
+			                     N, bBuffer, dBuffer, xBuffer );
+    	
+    }
     //switch to the LSE compute kernel
     else
     {
@@ -867,13 +909,14 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     	Console::Report( std::cout, "\tLAPACKE_DGELS\n" );
     	Console::Report( std::cout, "[END]" );
     	
-    	multiMatrix q( 200, 200 ), c( 200 );
-    	
     	//add the restraints to matrices and b
-    	AddRestraints( conf, constraints, a, b, mColumnTranslation );
+    	AddRestraints( conf, a, b, mColumnTranslation );
     	
-    	a.Report("MATRIX_A");
-		b.Report("MATRIX_B");
+    	if ( verbose )
+    	{
+    		a.Report("MATRIX_A");
+    		b.Report("MATRIX_B");
+    	}
     	
 		F64 *abuffer = a.GetBuffer();
 		F64 *bBuffer = b.GetBuffer();
@@ -916,7 +959,10 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field )
     // For lapack we needed c-style arrays so now we copy it back to my easy matrix format
     x.BufferSwap();
 
-    x.Report("MATRIX_X");
+    if ( verbose )
+    {
+    	x.Report("MATRIX_X");
+    }
     
     //convertion constants for the correct output format
     F32 f=2.541748;

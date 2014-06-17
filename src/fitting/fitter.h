@@ -19,8 +19,9 @@ namespace Fitter
 	*/
 	enum class FitKernel
 	{
-		DGESV = 1,
-		DGELS = 2
+		DGESV  = 1,
+		DGELS  = 2,
+		DGGLSE = 3
 	};
 	
 	/*
@@ -105,17 +106,17 @@ namespace Fitter
     /*
 	**	Add the preformatted constraints to the matrices
 	*/
-    Error::STATUS AddConstraints( std::vector< Constraint > &constraints, multiMatrix &a, multiMatrix &b  );
+    Error::STATUS AddConstraints( std::vector< Constraint > &constraints, multiMatrix &a, multiMatrix &b, const bool addMirror  );
     
     /*
 	**	In case of Resp append an identity matrix and add the correct force constants to the diagonal
 	*/
-    Error::STATUS AddRestraints( const Configuration &conf, std::vector< Constraint > &constraints, multiMatrix &b, multiMatrix &c, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation);
+    Error::STATUS AddRestraints( const Configuration &conf, multiMatrix &b, multiMatrix &c, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation);
     
     /*
 	**	Start function for the fitting functionality
 	*/
-    Error::STATUS FitSites( Configuration &conf, const Field &field  );
+    Error::STATUS FitSites( Configuration &conf, const Field &field, const bool verbose  );
 };
 
 #endif
