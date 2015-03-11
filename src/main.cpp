@@ -265,8 +265,6 @@ int main( int argc, char** argv)
     {
     	Error::Warn( std::cout, "Unable to generate a field input, fatal error!" );
 
-         system("pause");
-
     	return 1;
     }
     
@@ -276,8 +274,6 @@ int main( int argc, char** argv)
     {
     	Error::Warn( std::cout, "Unable to generate a configuration input, fatal error!" );
     	
-         system("pause");
-
         return 1;
     }
     
@@ -291,16 +287,12 @@ int main( int argc, char** argv)
     {
     	Error::Warn( std::cout, "Unable to set up the permanent field contributions, fatal error!" );
     	
-        system("pause");
-
         return 1;	
     }
     
     if ( Error::FAILED( Fitter::FitSites( conf, field, cline.GetOption("-v") ) ) )
     {
     	Error::Warn( std::cout, "Unable to fit the selected sites, fatal error!" );
-
-         system("pause");
 
     	return 1;
     }
