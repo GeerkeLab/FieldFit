@@ -7,10 +7,12 @@
 
 Report::Report( const Configuration &conf, const Field &field, const bool verbose )
 {
+    for ( U32 coll=0; coll < conf.NumCollections(); ++coll )
+    {
         //report the result
         mSs << "[FITS]" << std::endl;
        
-        mSs << "\t\t" << conf.Size() << std::endl << std::endl;
+        mSs << "\t\t" << conf.FitSites(coll) << std::endl << std::endl;
  
         if( !verbose )
         {
@@ -18,9 +20,9 @@ Report::Report( const Configuration &conf, const Field &field, const bool verbos
         	mSs << "#   Charge   DipoleX    DipoleY    DipoleZ      Q20     Q21C     Q21S     Q22C     Q22S" << std::endl << std::endl;	
         }
         
-        for ( U32 i=0; i < conf.Size(); ++i )
+        for ( U32 i=0; i < conf.FitSites(coll); ++i )
         {
-            const Configuration::FitSite *site = conf.GetSite( i );
+            const Configuration::FitSite *site = conf.GetSite( coll, i );
             
             std::string flagString = Util::FromFlags( site->fitFlags );
 
@@ -63,13 +65,15 @@ Report::Report( const Configuration &conf, const Field &field, const bool verbos
         }
         
         mSs << "[END]" << std::endl;
+    }
+    
+    const F64 chisqr = field.GetFieldStats( conf );
         
-        const F64 chisqr = field.GetFieldStats( conf );
-        
-        //also calculate chiSqr
-        mSs << "[CHISQR]" << std::endl;
-        mSs << "\t" << chisqr << std::endl;
-        mSs << "[END]" << std::endl;
+    //also calculate chiSqr
+    mSs << "[CHISQR]" << std::endl;
+    mSs << "\t" << chisqr << std::endl;
+    mSs << "[END]" << std::endl;
+    
 }
 
 void Report::WriteToStream( std::ostream &stream )

@@ -14,10 +14,12 @@
 */
 namespace Fitter
 {
+    typedef std::pair< U64, Configuration::valueType > SiteHash;
+    
 	/*
 	**	Types of solver kernels
 	*/
-	enum class FitKernel
+	enum FitKernel
 	{
 		DGESV  = 1,
 		DGELS  = 2,
@@ -31,9 +33,11 @@ namespace Fitter
     {
         ChargeSite();
 
-        ChargeSite( const U32 index, const Vec3 & p, const Configuration::valueType t );
-
+        ChargeSite( const U32 collection, const U32 index, const U32 stride, const Vec3 & p, const Configuration::valueType t );
+        
+        U32 collIndex;
         U32 confIndex;
+        U32 stride;
         Vec3 pos;
         Configuration::valueType type;
     };
@@ -46,9 +50,11 @@ namespace Fitter
     {
         DipoleSite();
 
-        DipoleSite( const U32 index, const Vec3 & p, const Configuration::valueType t );
+        DipoleSite( const U32 collection, const U32 index, const U32 stride, const Vec3 & p, const Configuration::valueType t );
 
+        U32 collIndex;
         U32 confIndex;
+        U32 stride;
         Vec3 pos;
         Configuration::valueType type;
     };
@@ -60,9 +66,11 @@ namespace Fitter
     {
         QuadrupoleSite();
 
-        QuadrupoleSite( const U32 index, const Vec3 & p, const Configuration::valueType t );
-
+        QuadrupoleSite( const U32 collection, const U32 index, const U32 stride, const Vec3 & p, const Configuration::valueType t );
+        
+        U32 collIndex;
         U32 confIndex;
+        U32 stride;
         Vec3 pos;
         Configuration::valueType type;
     };
@@ -72,7 +80,7 @@ namespace Fitter
 	*/
     struct Constraint
     {
-    	Constraint();
+        Constraint(){}
     	
     	Constraint( const std::vector< U32 > &cols, const std::vector< F32 > &coefficients, const F32 ref ):
     	reference( ref ), matrixColumns( cols ), matrixCoefficients( coefficients )
@@ -88,20 +96,23 @@ namespace Fitter
 	*/
     F64 DelComp( const Configuration::valueType, const Vec3 &i, const Vec3 &j );
 
+    
+    SiteHash GenerateSiteHash( const U32 collection, const U32 ID, Configuration::valueType type );
+    
     /*
 	**	Gather the configuration sites in a final pre-matrix format
 	*/
-    Error::STATUS TabulateSites( const Configuration &conf, std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation );   
+    Error::STATUS TabulateSites( const Configuration &conf, std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, std::map< SiteHash, U32 >& mColumnTranslation );
     
     /*
 	**	Gather the configuration constraints in a final pre-matrix format
 	*/
-    Error::STATUS TabulateConstraints( const Configuration &conf, std::vector< Constraint > & constraints, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation );
+    Error::STATUS TabulateConstraints( const Configuration &conf, std::vector< Constraint > & constraints, std::map< SiteHash, U32 >& mColumnTranslation );
    
     /*
 	**	Generate the matrices from the pretabulated charges, dipoles and qpols
 	*/
-    Error::STATUS GenerateMatrices( const std::vector< ChargeSite > &charges, const std::vector< DipoleSite > &dipoles, const std::vector< QuadrupoleSite > &quadrupoles, const Field &field, multiMatrix &a, multiMatrix &b  );
+    Error::STATUS GenerateMatrices( const std::vector< ChargeSite > &charges, const std::vector< DipoleSite > &dipoles, const std::vector< QuadrupoleSite > &quadrupoles, const Field &field, multiMatrix &a, multiMatrix &b);
    
     /*
 	**	Add the preformatted constraints to the matrices
@@ -111,7 +122,7 @@ namespace Fitter
     /*
 	**	In case of Resp append an identity matrix and add the correct force constants to the diagonal
 	*/
-    Error::STATUS AddRestraints( const Configuration &conf, multiMatrix &b, multiMatrix &c, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation);
+    Error::STATUS AddRestraints( const Configuration &conf, multiMatrix &b, multiMatrix &c, std::map< SiteHash, U32 >& mColumnTranslation);
     
     /*
 	**	Start function for the fitting functionality

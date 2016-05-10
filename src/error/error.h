@@ -25,7 +25,7 @@ namespace Error
 	/*
 	**	All return error types;
 	*/
-	enum class STATUS
+	enum STATUS
 	{
 		OK = 1,
 		OPTIONAL_BLOCK = 2,

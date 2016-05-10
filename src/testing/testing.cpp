@@ -31,7 +31,10 @@ Error::STATUS Testing::CompareToF( const Configuration& conf, const BlockParser&
         return Error::STATUS::FAILED_FTEST;
     }
     
-    if ( conf.Size() != sites )
+    // Always use collection 0, as fortran doesnt support multiframe
+    const U32 collection = 0;
+    
+    if ( conf.FitSites(collection) != sites )
     {
     	Error::Warn( std::cout, "The [F_RESULT] input and [SITES] input are not of equal size!" );
         return Error::STATUS::FAILED_FTEST;
@@ -45,9 +48,11 @@ Error::STATUS Testing::CompareToF( const Configuration& conf, const BlockParser&
 
     U32 index = 1;
     
+    std::cout << "[SYSTEM_TEST]" << std::endl;
+    std::cout << "Comparing c++ fitting to fortran fitting!" << std::endl;
     for ( U32 i=0; i < sites; ++i )
     {
-    	const Configuration::FitSite *site = conf.GetSite( i );
+    	const Configuration::FitSite *site = conf.GetSite( collection, i );
     	
     	F32 x = block->GetToken( index+1 )->GetValue< F32 >();
     	F32 y = block->GetToken( index+2 )->GetValue< F32 >();
@@ -83,6 +88,8 @@ Error::STATUS Testing::CompareToF( const Configuration& conf, const BlockParser&
 		
 		index += 18;
     }
+    
+    std::cout << "[END]" << std::endl;
     
     return Error::STATUS::OK;
 }

@@ -12,7 +12,8 @@ Fitter::ChargeSite::ChargeSite()
 
 }
 
-Fitter::ChargeSite::ChargeSite( const U32 index, const Vec3 & p, const Configuration::valueType t ) : confIndex( index ), pos( p ), type( t )
+Fitter::ChargeSite::ChargeSite( const U32 collection,const U32 index, const U32 stride, const Vec3 & p, const Configuration::valueType t ) :
+collIndex( collection), confIndex( index ), stride( stride ), pos( p ), type( t )
 {
 
 }
@@ -22,7 +23,8 @@ Fitter::DipoleSite::DipoleSite()
 
 }
 
-Fitter::DipoleSite::DipoleSite( const U32 index, const Vec3 & p, const Configuration::valueType t ) : confIndex( index ), pos( p ), type( t )
+Fitter::DipoleSite::DipoleSite( const U32 collection,const U32 index, const U32 stride, const Vec3 & p, const Configuration::valueType t ) :
+collIndex( collection),confIndex( index ), stride( stride ), pos( p ), type( t )
 {
 
 }
@@ -32,7 +34,8 @@ Fitter::QuadrupoleSite::QuadrupoleSite()
 
 }
 
-Fitter::QuadrupoleSite::QuadrupoleSite( const U32 index, const Vec3 & p, const Configuration::valueType t ) : confIndex( index ), pos( p ), type( t )
+Fitter::QuadrupoleSite::QuadrupoleSite( const U32 collection,const U32 index, const U32 stride, const Vec3 & p, const Configuration::valueType t ) :
+collIndex( collection), confIndex( index ), stride( stride ), pos( p ), type( t )
 {
 
 }
@@ -88,246 +91,270 @@ F64 Fitter::DelComp( const Configuration::valueType type, const Vec3 &i, const V
     return 0.0;
 }
 
-Error::STATUS Fitter::TabulateSites( const Configuration &conf, std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation )
+Fitter::SiteHash Fitter::GenerateSiteHash( const U32 collection, const U32 ID, Configuration::valueType type )
+{
+    const U64 part1 = (U64)ID;
+    const U64 part2 = ( (U64)collection ) << 32;
+                           
+    std::pair< U64, Configuration::valueType > hash = std::make_pair( part1 | part2, type );
+    
+    return hash;
+}
+
+Error::STATUS Fitter::TabulateSites( const Configuration &conf, std::vector< ChargeSite > &charges, std::vector< DipoleSite > &dipoles, std::vector< QuadrupoleSite > &quadrupoles, std::map< SiteHash, U32 >& columnTranslation )
 {    
     U32 column = 0;
    
-    //
-	//	Iterate over all sites and types and collect them in formatted charges, dipole and quadrupole arrays
-	//  We also connect ID,Type - Column information so that we can easily add constraints and restraints
-	//
-	
-    for ( U32 i=0; i < conf.Size(); ++i )
+    // Iterate collections!
+    for ( U32 coll=0; coll < conf.NumCollections(); ++coll )
     {
-        const Configuration::FitSite *site = conf.GetSite( i );
-        const U32 fitFlags = site->fitFlags;
-        const Vec3 & pos   = site->position;
-        const U32 id = site->ID;
+    
+        //
+        //	Iterate over all sites and types and collect them in formatted charges, dipole and quadrupole arrays
+        //  We also connect ID,Type - Column information so that we can easily add constraints and restraints
+        //
+	
+        for ( U32 i=0; i < conf.FitSites(coll); ++i )
+        {
+            const Configuration::FitSite *site = conf.GetSite( coll, i );
+            const U32 fitFlags = site->fitFlags;
+            const Vec3 & pos   = site->position;
+            const U32 id = site->ID;
         
-        if ( fitFlags & (0x01) )
-        {
-            charges.push_back( ChargeSite( i, pos, Configuration::valueType::charge ) );
+            if ( fitFlags & (0x01) )
+            {
+                charges.push_back( ChargeSite( coll, i, column, pos, Configuration::valueType::charge ) );
             
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::charge );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
+                const SiteHash hash = GenerateSiteHash( coll, id, Configuration::valueType::charge );
+                columnTranslation.insert( std::make_pair( hash , column ) );
+                column++;
+            }
             
-        if ( fitFlags & (0x02) )
-        {
-            dipoles.push_back( DipoleSite( i, pos, Configuration::valueType::dipoleX ) );
+            if ( fitFlags & (0x02) )
+            {
+                dipoles.push_back( DipoleSite( coll, i, column, pos, Configuration::valueType::dipoleX ) );
             
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::dipoleX );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
+                const SiteHash hash = GenerateSiteHash( coll, id, Configuration::valueType::dipoleX );
+                columnTranslation.insert( std::make_pair( hash , column ) );
+                column++;
+            }
         
-        if ( fitFlags & (0x04) )
-        {
-            dipoles.push_back( DipoleSite( i, pos, Configuration::valueType::dipoleY ) );
+            if ( fitFlags & (0x04) )
+            {
+                dipoles.push_back( DipoleSite( coll, i, column, pos, Configuration::valueType::dipoleY ) );
             
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::dipoleY );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
+                const SiteHash hash = GenerateSiteHash( coll, id, Configuration::valueType::dipoleY );
+                columnTranslation.insert( std::make_pair( hash , column ) );
+                column++;
+            }
         
-        if ( fitFlags & (0x08) )
-        {
-            dipoles.push_back( DipoleSite( i, pos, Configuration::valueType::dipoleZ ) );
+            if ( fitFlags & (0x08) )
+            {
+                dipoles.push_back( DipoleSite( coll, i, column, pos, Configuration::valueType::dipoleZ ) );
             
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::dipoleZ );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
+                const SiteHash hash = GenerateSiteHash( coll, id, Configuration::valueType::dipoleZ );
+                columnTranslation.insert( std::make_pair( hash , column ) );
+                column++;
+            }
         
-        if ( fitFlags & (0x10) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd20 ) );
+            if ( fitFlags & (0x10) )
+            {
+                quadrupoles.push_back( QuadrupoleSite( coll, i, column, pos, Configuration::valueType::qd20 ) );
             
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd20 );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
+                const SiteHash hash = GenerateSiteHash( coll, id, Configuration::valueType::qd20 );
+                columnTranslation.insert( std::make_pair( hash , column ) );
+                column++;
+            }
         
-        if ( fitFlags & (0x20) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd21c ) );
+            if ( fitFlags & (0x20) )
+            {
+                quadrupoles.push_back( QuadrupoleSite( coll, i, column, pos, Configuration::valueType::qd21c ) );
             
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd21c );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
+                const SiteHash hash = GenerateSiteHash( coll, id, Configuration::valueType::qd21c );
+                columnTranslation.insert( std::make_pair( hash , column ) );
+                column++;
+            }
         
-        if ( fitFlags & (0x40) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd21s ) );
+            if ( fitFlags & (0x40) )
+            {
+                quadrupoles.push_back( QuadrupoleSite( coll, i, column, pos, Configuration::valueType::qd21s ) );
             
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd21s );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
+                const SiteHash hash = GenerateSiteHash( coll, id, Configuration::valueType::qd21s );
+                columnTranslation.insert( std::make_pair( hash , column ) );
+                column++;
+            }
         
-        if ( fitFlags & (0x80) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd22c ) );
-            
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd22c );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
-        }
+            if ( fitFlags & (0x80) )
+            {
+                quadrupoles.push_back( QuadrupoleSite( coll, i, column, pos, Configuration::valueType::qd22c ) );
+                
+                const SiteHash hash = GenerateSiteHash( coll, id, Configuration::valueType::qd22c );
+                columnTranslation.insert( std::make_pair( hash , column ) );
+                column++;
+            }
         
-        if ( fitFlags & (0x100) )
-        {
-            quadrupoles.push_back( QuadrupoleSite(i, pos, Configuration::valueType::qd22s ) );
+            if ( fitFlags & (0x100) )
+            {
+                quadrupoles.push_back( QuadrupoleSite( coll, i, column, pos, Configuration::valueType::qd22s ) );
             
-            std::pair< U32, Configuration::valueType > hash = std::make_pair( id, Configuration::valueType::qd22s );
-            mColumnTranslation.insert( std::make_pair( hash , column ) );
-            column++;
+                const SiteHash hash = GenerateSiteHash( coll, id, Configuration::valueType::qd22s );
+                columnTranslation.insert( std::make_pair( hash , column ) );
+                column++;
+            }
         }
     }
-    
+        
     return Error::STATUS::OK;
 }
 
-Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vector< Constraint > & constraints, std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation )
+Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vector< Constraint > & constraints, std::map< SiteHash, U32 >& columnTranslation )
 {
-	//
-	//	We now convert different constraints to one general format
-	//  For dipoles and qpols convert input units to compute units using constants 2.541748 and 1.3450351
-	//
-	
-	for ( U32 i=0; i < conf.ValueConstr(); ++i )
+    // Iterate collections!
+    for ( U32 coll=0; coll < conf.NumCollections(); ++coll )
     {
-    	const Configuration::ValueConstraint *constr = conf.GetValueConstraint( i );
-    	const U32 id = constr->ID;
-    	const Configuration::valueType type = constr->type;
-        F32 val = constr->value;
-    	
-    	//if dipole or quadrupole convert!
-    	if ( type == Configuration::valueType::dipoleX || 
-    		 type == Configuration::valueType::dipoleY ||
-    		 type == Configuration::valueType::dipoleZ
-    	   )
-    	{
-    		val /= 2.541748;
-    	}
-    	else if ( type == Configuration::valueType::qd20  || 
-    		      type == Configuration::valueType::qd21c ||
-    		   	  type == Configuration::valueType::qd21s ||
-    		 	  type == Configuration::valueType::qd22c ||
-    		  	  type == Configuration::valueType::qd22s
-    	        )
-    	{
-    		val /= 1.3450351;
-    	}
-    	
-    	//find the correct column;
-    	std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it = mColumnTranslation.find( std::make_pair( id, type ) );
-    	
-    	if ( it == mColumnTranslation.end() )
-    	{
-    		Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
-    			                  + "  is not a fitting combination, so cannot be constrained !" );
-    		
-    		return Error::STATUS::FAILED_CONSTR_R;
-    	}
-    	
-    	std::vector< U32 > targetColumns;
-    	std::vector< F32 > targetCoefficients;
-    	targetColumns.push_back( it->second );
-    	targetCoefficients.push_back( 1.0 );
-    	
-    	constraints.push_back( Constraint( targetColumns, targetCoefficients, val ) );
-    }
     
-    for ( U32 i=0; i < conf.SymConstr(); ++i )
-    {
-    	const Configuration::SymConstraint *constr = conf.GetSymConstraint( i );
-    	const U32 id1 = constr->ID1;
-    	const U32 id2 = constr->ID2;
-    	const Configuration::valueType type1 = constr->type1;
-    	const Configuration::valueType type2 = constr->type2;
+        //
+        //	We now convert different constraints to one general format
+        //  For dipoles and qpols convert input units to compute units using constants 2.541748 and 1.3450351
+        //
+	
+        for ( U32 i=0; i < conf.ValueConstr(coll); ++i )
+        {
+            const Configuration::ValueConstraint *constr = conf.GetValueConstraint( coll, i );
+            const U32 id = constr->ID;
+            const Configuration::valueType type = constr->type;
+            F32 val = constr->value;
     	
-        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it1 = mColumnTranslation.find( std::make_pair( id1, type1 ) );
-        std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it2 = mColumnTranslation.find( std::make_pair( id2, type2 ) );
-
-        if ( it1 == mColumnTranslation.end() )
-        {
-            Error::Warn( std::cout, "The combination of id " + Util::ToString( id1 ) + " and type " + Util::ToString( static_cast<U32>( type1 ) ) 
-                + "  is not a fitting combination, so cannot be constrained !" );
-
-            return Error::STATUS::FAILED_CONSTR_R;
-        }
-
-        if ( it2 == mColumnTranslation.end() )
-        {
-            Error::Warn( std::cout, "The combination of id " + Util::ToString( id2 ) + " and type " + Util::ToString( static_cast<U32>( type2 ) ) 
-                + "  is not a fitting combination, so cannot be constrained !" );
-
-            return Error::STATUS::FAILED_CONSTR_R;
-        }
-
-        std::vector< U32 > targetColumns;
-        std::vector< F32 > targetCoefficients;
-        targetColumns.push_back( it1->second );
-        targetColumns.push_back( it2->second );
-        targetCoefficients.push_back( 1.0 );
-        targetCoefficients.push_back( -1.0 );
-
-        constraints.push_back( Constraint( targetColumns, targetCoefficients, 0.0 ) );
-    }
-
-    for ( U32 i=0; i < conf.SumConstr(); ++i )
-    {
-        const Configuration::SumConstraint *constr = conf.GetSumConstraint( i );
-       
-        std::vector< U32 > targetColumns;
-        std::vector< F32 > targetCoefficients;
-        
-        for ( U32 j=0; j < constr->locations.size(); j++ )
-        {
-            const std::pair< U32, Configuration::valueType > &pair = constr->locations[j];
-
-            const U32 id = pair.first;
-            const Configuration::valueType type = pair.second;
-
             //if dipole or quadrupole convert!
-            F32 coefficientScaling = 1.0;
-            
-			if ( type == Configuration::valueType::dipoleX || 
-				 type == Configuration::valueType::dipoleY ||
-				 type == Configuration::valueType::dipoleZ
-			   )
-			{
-				coefficientScaling = 2.541748;
-			}
-			else if ( type == Configuration::valueType::qd20  || 
-					  type == Configuration::valueType::qd21c ||
-					  type == Configuration::valueType::qd21s ||
-					  type == Configuration::valueType::qd22c ||
-					  type == Configuration::valueType::qd22s
-					)
-			{
-				coefficientScaling = 1.3450351;
-			}
-            
-            std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it = mColumnTranslation.find( std::make_pair( id, type ) );
-
-            if ( it == mColumnTranslation.end() )
+            if ( type == Configuration::valueType::dipoleX ||
+                 type == Configuration::valueType::dipoleY ||
+                 type == Configuration::valueType::dipoleZ
+                )
             {
-                Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
-                    + "  is not a fitting combination, so cannot be constrained !" );
+                val /= 2.541748;
+            }
+            else if ( type == Configuration::valueType::qd20  ||
+                      type == Configuration::valueType::qd21c ||
+                      type == Configuration::valueType::qd21s ||
+                      type == Configuration::valueType::qd22c ||
+    		  	      type == Configuration::valueType::qd22s
+                     )
+            {
+                val /= 1.3450351;
+            }
+    	
+            //find the correct column;
+            const SiteHash hash = GenerateSiteHash( coll, id, type );
+            std::map< SiteHash, U32 >::iterator it = columnTranslation.find( hash );
+    	
+            if ( it == columnTranslation.end() )
+            {
+                Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) )
+                                      + "is not a fitting combination, so cannot be constrained !" );
+    		
+                return Error::STATUS::FAILED_CONSTR_R;
+            }
+    	
+            std::vector< U32 > targetColumns;
+            std::vector< F32 > targetCoefficients;
+            targetColumns.push_back( it->second );
+            targetCoefficients.push_back( 1.0 );
+    	
+            constraints.push_back( Constraint( targetColumns, targetCoefficients, val ) );
+        }
+    
+        for ( U32 i=0; i < conf.SymConstr(coll); ++i )
+        {
+            const Configuration::SymConstraint *constr = conf.GetSymConstraint( coll, i );
+            const U32 id1 = constr->ID1;
+            const U32 id2 = constr->ID2;
+            const Configuration::valueType type1 = constr->type1;
+            const Configuration::valueType type2 = constr->type2;
+    	
+            const SiteHash hash1 = GenerateSiteHash( coll, id1, type1 );
+            const SiteHash hash2 = GenerateSiteHash( coll, id2, type2 );
+            std::map< SiteHash, U32 >::iterator it1 = columnTranslation.find( hash1 );
+            std::map< SiteHash, U32 >::iterator it2 = columnTranslation.find( hash2 );
+            
+            if ( it1 == columnTranslation.end() )
+            {
+                Error::Warn( std::cout, "The combination of id " + Util::ToString( id1 ) + " and type " + Util::ToString( static_cast<U32>( type1 ) )
+                                       + "  is not a fitting combination, so cannot be constrained !" );
 
                 return Error::STATUS::FAILED_CONSTR_R;
             }
-            
-            targetColumns.push_back( it->second );
-            targetCoefficients.push_back( coefficientScaling * 1.0 );
+
+            if ( it2 == columnTranslation.end() )
+            {
+                Error::Warn( std::cout, "The combination of id " + Util::ToString( id2 ) + " and type " + Util::ToString( static_cast<U32>( type2 ) )
+                                      + "  is not a fitting combination, so cannot be constrained !" );
+
+                return Error::STATUS::FAILED_CONSTR_R;
+            }
+
+            std::vector< U32 > targetColumns;
+            std::vector< F32 > targetCoefficients;
+            targetColumns.push_back( it1->second );
+            targetColumns.push_back( it2->second );
+            targetCoefficients.push_back( 1.0 );
+            targetCoefficients.push_back( -1.0 );
+
+            constraints.push_back( Constraint( targetColumns, targetCoefficients, 0.0 ) );
         }
 
-        F32 reference = constr->value;
+        for ( U32 i=0; i < conf.SumConstr(coll); ++i )
+        {
+            const Configuration::SumConstraint *constr = conf.GetSumConstraint( coll, i );
+       
+            std::vector< U32 > targetColumns;
+            std::vector< F32 > targetCoefficients;
+        
+            for ( U32 j=0; j < constr->locations.size(); j++ )
+            {
+                const std::pair< U32, Configuration::valueType > &pair = constr->locations[j];
 
-        constraints.push_back( Constraint( targetColumns, targetCoefficients, reference ) );
+                const U32 id = pair.first;
+                const Configuration::valueType type = pair.second;
+
+                //if dipole or quadrupole convert!
+                F32 coefficientScaling = 1.0;
+            
+                if ( type == Configuration::valueType::dipoleX ||
+                     type == Configuration::valueType::dipoleY ||
+                     type == Configuration::valueType::dipoleZ
+                    )
+                {
+                    coefficientScaling = 2.541748;
+                }
+                else if ( type == Configuration::valueType::qd20  ||
+                          type == Configuration::valueType::qd21c ||
+                          type == Configuration::valueType::qd21s ||
+                          type == Configuration::valueType::qd22c ||
+                          type == Configuration::valueType::qd22s
+                         )
+                {
+                    coefficientScaling = 1.3450351;
+                }
+            
+                const SiteHash hash = GenerateSiteHash( coll, id, type );
+                std::map< SiteHash, U32 >::iterator it = columnTranslation.find( hash );
+
+                if ( it == columnTranslation.end() )
+                {
+                    Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) )
+                                          + "  is not a fitting combination, so cannot be constrained !" );
+
+                    return Error::STATUS::FAILED_CONSTR_R;
+                }
+            
+                targetColumns.push_back( it->second );
+                targetCoefficients.push_back( coefficientScaling * 1.0 );
+            }
+
+            F32 reference = constr->value;
+
+            constraints.push_back( Constraint( targetColumns, targetCoefficients, reference ) );
+        }
     }
 	
 	return Error::STATUS::OK;
@@ -364,295 +391,374 @@ Error::STATUS Fitter::GenerateMatrices( const std::vector< ChargeSite > &charges
 	//	This trick allows use to describe the system in a N X N matrix, where N = number of fit variables
 	//  while maintaining rank( N );
 	//
-	
+
     //
     // Charges
     //
-    U32 row = 0;
 
-    for( U32 i=0; i < charges.size(); ++i )
+    for( const ChargeSite &charge_i : charges )
     {
+        const U32 row = charge_i.stride;
+        
         //
         //  Charge-Charge block
         //
-        U32 column = 0;
-
-        for( U32 j=0; j < charges.size(); ++j )
+        for( const ChargeSite &charge_j : charges )
         {
-            F64 sum = 0.0f;
-            for ( U32 n=0; n < field.Size(); ++n )
+            const U32 column = charge_j.stride;
+            
+            // Ignore inter collection contacts
+            if ( charge_i.collIndex != charge_j.collIndex )
             {
-                Vec3 fpos = field.GetFieldPosition( n );
-
-                F64 disti_2 = fpos.Distance2( charges[i].pos );
-                F64 distj_2 = fpos.Distance2( charges[j].pos );
-
+                continue;
+            }
+            
+            F64 sum = 0.0f;
+            for ( U32 n=0; n < field.Size(charge_j.collIndex); ++n )
+            {
+                Vec3 fpos = field.GetFieldPosition( charge_j.collIndex, n );
+                
+                F64 disti_2 = fpos.Distance2( charge_i.pos );
+                F64 distj_2 = fpos.Distance2( charge_j.pos );
+                
                 sum += 1.0/Mathf::Sqrt( disti_2 * distj_2 );
             }
-            a( row, column ) = 2.0 * sum;
-
-            column++;
+            a( row, column ) += 2.0 * sum;
         }
-
+        
         //
         //  Charge-Dipole block
         //
-        for( U32 j=0; j < dipoles.size(); ++j )
+        for( const DipoleSite &dipole_j : dipoles )
         {
-            F64 sum = 0.0f;
-            for ( U32 n=0; n < field.Size(); ++n )
+            const U32 column = dipole_j.stride;
+            
+            // Ignore inter collection contacts
+            if ( charge_i.collIndex != dipole_j.collIndex )
             {
-                Vec3 fpos = field.GetFieldPosition( n );
-
-                F64 disti_2 = fpos.Distance2( charges[i].pos );
-                F64 distj_2 = fpos.Distance2( dipoles[j].pos );
-
-                F64 delcomp = DelComp( dipoles[j].type, fpos, dipoles[j].pos );
-
-                sum += delcomp / ( distj_2 * Mathf::Sqrt( disti_2 * distj_2 ) );
-
+                continue;
             }
-
-            a( row, column )=2.0*sum;
-
-            column++;
+            
+            F64 sum = 0.0f;
+            for ( U32 n=0; n < field.Size(dipole_j.collIndex); ++n )
+            {
+                Vec3 fpos = field.GetFieldPosition( dipole_j.collIndex, n );
+                
+                F64 disti_2 = fpos.Distance2( charge_i.pos );
+                F64 distj_2 = fpos.Distance2( dipole_j.pos );
+                
+                F64 delcomp = DelComp( dipole_j.type, fpos, dipole_j.pos );
+                
+                sum += delcomp / ( distj_2 * Mathf::Sqrt( disti_2 * distj_2 ) );
+                
+            }
+            
+            a( row, column ) += 2.0*sum;
         }
-
+        
         //
         //  Charge-Quadrupole block
         //
-
-        for( U32 j=0; j < quadrupoles.size(); ++j )
+        
+        for( const QuadrupoleSite &qpol_j : quadrupoles )
         {
-            F64 sum = 0.0f;
-            for ( U32 n=0; n < field.Size(); ++n )
+            const U32 column = qpol_j.stride;
+            
+            // Ignore inter collection contacts
+            if ( charge_i.collIndex != qpol_j.collIndex )
             {
-                Vec3 fpos = field.GetFieldPosition( n );
-
-                F64 disti_2 = fpos.Distance2( charges[i].pos );
-                F64 distj_2 = fpos.Distance2( quadrupoles[j].pos );
-
-                F64 delcomp = DelComp( quadrupoles[j].type, fpos, quadrupoles[j].pos );
-
+                continue;
+            }
+            
+            F64 sum = 0.0f;
+            for ( U32 n=0; n < field.Size(qpol_j.collIndex); ++n )
+            {
+                Vec3 fpos = field.GetFieldPosition( qpol_j.collIndex, n );
+                
+                F64 disti_2 = fpos.Distance2( charge_i.pos );
+                F64 distj_2 = fpos.Distance2( qpol_j.pos );
+                
+                F64 delcomp = DelComp( qpol_j.type, fpos, qpol_j.pos );
+                
                 sum += delcomp / ( distj_2*distj_2*Mathf::Sqrt(disti_2*distj_2) );
             }
-            a(row,column)=2.0*sum;
-
-            column++;
+            a(row,column) += 2.0*sum;
         }
-
+        
         //
         //  X_vector
         //
         F64 sum = 0.0;
-        for ( U32 n=0; n < field.Size(); ++n )
+        for ( U32 n=0; n < field.Size(charge_i.collIndex); ++n )
         {
-            Vec3 fpos = field.GetFieldPosition( n );
-
-            F64 disti_2 = fpos.Distance2( charges[i].pos );
-
-            sum += ( field.GetFieldDiff(n) )/Mathf::Sqrt( disti_2 );
+            Vec3 fpos = field.GetFieldPosition( charge_i.collIndex, n );
+            
+            F64 disti_2 = fpos.Distance2( charge_i.pos );
+            
+            sum += ( field.GetFieldDiff(charge_i.collIndex, n) )/Mathf::Sqrt( disti_2 );
         }
-
-        b(row)=2.0*sum;
-
-        row++;
+        
+        b(row) += 2.0*sum;
     }
-
+    
     //
     // Dipoles
     //
-    for( U32 i=0; i < dipoles.size(); ++i )
+    for( const DipoleSite &dipole_i : dipoles )
     {
+        const U32 row = dipole_i.stride;
+        
         //
         //  Dipole-Charge block
         //
         U32 column = 0;
-
-        for( U32 j=0; j < charges.size(); ++j )
+        
+        for( const ChargeSite &charge_j : charges )
         {
-            F64 sum = 0.0f;
-            for ( U32 n=0; n < field.Size(); ++n )
+            const U32 column = charge_j.stride;
+            
+            // Ignore inter collection contacts
+            if ( dipole_i.collIndex != charge_j.collIndex )
             {
-                Vec3 fpos = field.GetFieldPosition( n );
-
-                F64 disti_2 = fpos.Distance2( dipoles[i].pos );
-                F64 distj_2 = fpos.Distance2( charges[j].pos );
-
-                F64 delcomp = DelComp( dipoles[i].type, fpos, dipoles[j].pos );
-
+                continue;
+            }
+            
+            F64 sum = 0.0f;
+            for ( U32 n=0; n < field.Size(charge_j.collIndex); ++n )
+            {
+                Vec3 fpos = field.GetFieldPosition( charge_j.collIndex, n );
+                
+                F64 disti_2 = fpos.Distance2( dipole_i.pos );
+                F64 distj_2 = fpos.Distance2( charge_j.pos );
+                
+                // TO CHECK, was first dipole_j.pos
+                F64 delcomp = DelComp( dipole_i.type, fpos, dipole_i.pos );
+                
                 sum += delcomp / ( disti_2 * Mathf::Sqrt( disti_2 * distj_2 ) );
             }
-            a( row, column ) = 2.0 * sum;
-
-            column++;
+            
+            a( row, column )  += 2.0 * sum;
         }
-
+        
         //
         //  Dipole-Dipole block
         //
-        for( U32 j=0; j < dipoles.size(); ++j )
+        for( const DipoleSite &dipole_j : dipoles )
         {
-            F64 sum = 0.0f;
-            for ( U32 n=0; n < field.Size(); ++n )
+            const U32 column = dipole_j.stride;
+            
+            // Ignore inter collection contacts
+            if ( dipole_i.collIndex != dipole_j.collIndex )
             {
-                Vec3 fpos = field.GetFieldPosition( n );
-
-                F64 disti_2 = fpos.Distance2( dipoles[i].pos );
-                F64 distj_2 = fpos.Distance2( dipoles[j].pos );
-
-                F64 delcompi = DelComp( dipoles[i].type, fpos, dipoles[i].pos );
-                F64 delcompj = DelComp( dipoles[j].type, fpos, dipoles[j].pos );
-
-                sum += delcompi * delcompj / ( disti_2 * distj_2 * Mathf::Sqrt( disti_2 * distj_2 ) );
-
+                continue;
             }
-
-            a( row, column )=2.0*sum;
-
-            column++;
+            
+            F64 sum = 0.0f;
+            for ( U32 n=0; n < field.Size(dipole_j.collIndex); ++n )
+            {
+                Vec3 fpos = field.GetFieldPosition( dipole_j.collIndex, n );
+                
+                F64 disti_2 = fpos.Distance2( dipole_i.pos );
+                F64 distj_2 = fpos.Distance2( dipole_j.pos );
+                
+                F64 delcompi = DelComp( dipole_i.type, fpos, dipole_i.pos );
+                F64 delcompj = DelComp( dipole_j.type, fpos, dipole_j.pos );
+                
+                sum += delcompi * delcompj / ( disti_2 * distj_2 * Mathf::Sqrt( disti_2 * distj_2 ) );
+                
+            }
+            
+            a( row, column ) += 2.0*sum;
         }
-
+        
         //
         //  Dipole-Quadrupole block
         //
-        for( U32 j=0; j < quadrupoles.size(); ++j )
+        for ( const QuadrupoleSite &qpol_j : quadrupoles )
         {
-            F64 sum = 0.0f;
-            for ( U32 n=0; n < field.Size(); ++n )
+            const U32 column = qpol_j.stride;
+
+            // Ignore inter collection contacts
+            if ( dipole_i.collIndex != qpol_j.collIndex )
             {
-                Vec3 fpos = field.GetFieldPosition( n );
-
-                F64 disti_2 = fpos.Distance2( dipoles[i].pos );
-                F64 distj_2 = fpos.Distance2( quadrupoles[j].pos );
-
-                F64 delcompi = DelComp( dipoles[i].type, fpos, dipoles[i].pos );
-                F64 delcompj = DelComp( quadrupoles[j].type, fpos, quadrupoles[j].pos );
-
+                continue;
+            }
+            
+            F64 sum = 0.0f;
+            for ( U32 n=0; n < field.Size(qpol_j.collIndex); ++n )
+            {
+                Vec3 fpos = field.GetFieldPosition( qpol_j.collIndex, n );
+                
+                F64 disti_2 = fpos.Distance2( dipole_i.pos );
+                F64 distj_2 = fpos.Distance2( qpol_j.pos );
+                
+                F64 delcompi = DelComp( dipole_i.type, fpos, dipole_i.pos );
+                F64 delcompj = DelComp( qpol_j.type, fpos, qpol_j.pos );
+                
                 sum += delcompi * delcompj / ( disti_2 * distj_2 * distj_2 * Mathf::Sqrt(disti_2*distj_2) );
             }
-            a(row,column)=2.0*sum;
-
-            column++;
+            a(row,column) += 2.0*sum;
         }
-
+        
         //
         //  X_vector
         //
         F64 sum = 0.0;
-        for ( U32 n=0; n < field.Size(); ++n )
+        for ( U32 n=0; n < field.Size(dipole_i.collIndex); ++n )
         {
-            Vec3 fpos = field.GetFieldPosition( n );
-
-            F64 disti_2 = fpos.Distance2( dipoles[i].pos );
-            F64 delcompi = DelComp( dipoles[i].type, fpos, dipoles[i].pos );
-
-            sum += ( field.GetFieldDiff(n) * delcompi ) / ( disti_2 * Mathf::Sqrt( disti_2 ) );
+            Vec3 fpos = field.GetFieldPosition( dipole_i.collIndex, n );
+            
+            F64 disti_2 = fpos.Distance2( dipole_i.pos );
+            F64 delcompi = DelComp( dipole_i.type, fpos, dipole_i.pos );
+            
+            sum += ( field.GetFieldDiff(dipole_i.collIndex, n) * delcompi ) / ( disti_2 * Mathf::Sqrt( disti_2 ) );
         }
-
-        b(row)=2.0*sum;
-
-        row++;
+        
+        b(row) += 2.0*sum;
     }
-
+    
     //
     // Quadrupoles
     //
-    for( U32 i=0; i < quadrupoles.size(); ++i )
+    for( const QuadrupoleSite &qpol_i : quadrupoles )
     {
-        U32 column = 0;
-
+        const U32 row = qpol_i.stride;
+        
         //
         //  Quadrupole-Charge block
         //
-        for( U32 j=0; j < charges.size(); ++j )
+        for( const ChargeSite &charge_j : charges )
         {
-            F64 sum = 0.0f;
-            for ( U32 n=0; n < field.Size(); ++n )
+            const U32 column = charge_j.stride;
+            
+            // Ignore inter collection contacts
+            if ( qpol_i.collIndex != charge_j.collIndex )
             {
-                Vec3 fpos = field.GetFieldPosition( n );
-
-                F64 disti_2 = fpos.Distance2( quadrupoles[i].pos );
-                F64 distj_2 = fpos.Distance2( charges[j].pos );
-
-                F64 delcomp = DelComp( quadrupoles[i].type, fpos, quadrupoles[i].pos );
-
+                continue;
+            }
+            
+            F64 sum = 0.0f;
+            for ( U32 n=0; n < field.Size(charge_j.collIndex); ++n )
+            {
+                Vec3 fpos = field.GetFieldPosition( charge_j.collIndex, n );
+                
+                F64 disti_2 = fpos.Distance2( qpol_i.pos );
+                F64 distj_2 = fpos.Distance2( charge_j.pos );
+                
+                F64 delcomp = DelComp( qpol_i.type, fpos, qpol_i.pos );
+                
                 sum += delcomp / ( disti_2 * disti_2 * Mathf::Sqrt( disti_2 * distj_2 ) );
             }
-
-            a( row, column ) = 2.0 * sum;
-
-            column++;
+            
+            a( row, column ) += 2.0 * sum;
         }
-
+        
         //
         //  Quadrupole-Dipole block
         //
-        for( U32 j=0; j < dipoles.size(); ++j )
+        for( const DipoleSite &dipole_j : dipoles )
         {
-            F64 sum = 0.0f;
-            for ( U32 n=0; n < field.Size(); ++n )
+            const U32 column = dipole_j.stride;
+            
+            // Ignore inter collection contacts
+            if ( qpol_i.collIndex != dipole_j.collIndex )
             {
-                Vec3 fpos = field.GetFieldPosition( n );
-
-                F64 disti_2 = fpos.Distance2( quadrupoles[i].pos );
-                F64 distj_2 = fpos.Distance2( dipoles[j].pos );
-
-                F64 delcompi = DelComp( quadrupoles[i].type, fpos, quadrupoles[i].pos );
-                F64 delcompj = DelComp( dipoles[j].type, fpos, dipoles[j].pos );
-
-                sum += delcompi * delcompj / ( disti_2 * disti_2 * distj_2 * Mathf::Sqrt( disti_2 * distj_2 ) );
-
+                continue;
             }
-
-            a( row, column )=2.0*sum;
-
-            column++;
+            
+            F64 sum = 0.0f;
+            for ( U32 n=0; n < field.Size(dipole_j.collIndex); ++n )
+            {
+                Vec3 fpos = field.GetFieldPosition( dipole_j.collIndex, n );
+                
+                F64 disti_2 = fpos.Distance2( qpol_i.pos );
+                F64 distj_2 = fpos.Distance2( dipole_j.pos );
+                
+                F64 delcompi = DelComp( qpol_i.type, fpos, qpol_i.pos );
+                F64 delcompj = DelComp( dipole_j.type, fpos, dipole_j.pos );
+                
+                sum += delcompi * delcompj / ( disti_2 * disti_2 * distj_2 * Mathf::Sqrt( disti_2 * distj_2 ) );
+                
+            }
+            
+            a( row, column ) += 2.0*sum;
         }
-
+        
         //
         //  Quadrupole-Quadrupole block
         //
-        for( U32 j=0; j < quadrupoles.size(); ++j )
+        for( const QuadrupoleSite &qpol_j : quadrupoles )
         {
-            F64 sum = 0.0f;
-            for ( U32 n=0; n < field.Size(); ++n )
+            const U32 column = qpol_j.stride;
+            
+            // Ignore inter collection contacts
+            if ( qpol_i.collIndex != qpol_j.collIndex )
             {
-                Vec3 fpos = field.GetFieldPosition( n );
-
-                F64 disti_2 = fpos.Distance2( quadrupoles[i].pos );
-                F64 distj_2 = fpos.Distance2( quadrupoles[j].pos );
-
-                F64 delcompi = DelComp( quadrupoles[i].type, fpos, quadrupoles[i].pos );
-                F64 delcompj = DelComp( quadrupoles[j].type, fpos, quadrupoles[j].pos );
-
+                continue;
+            }
+            
+            F64 sum = 0.0f;
+            for ( U32 n=0; n < field.Size(qpol_j.collIndex); ++n )
+            {
+                Vec3 fpos = field.GetFieldPosition( qpol_j.collIndex, n );
+                
+                F64 disti_2 = fpos.Distance2( qpol_i.pos );
+                F64 distj_2 = fpos.Distance2( qpol_j.pos );
+                
+                F64 delcompi = DelComp( qpol_i.type, fpos, qpol_i.pos );
+                F64 delcompj = DelComp( qpol_j.type, fpos, qpol_j.pos );
+                
                 sum += delcompi * delcompj / ( disti_2 * disti_2 * distj_2 * distj_2 * Mathf::Sqrt(disti_2*distj_2) );
             }
-            a(row,column)=2.0*sum;
-
-            column++;
+            
+            a(row,column) += 2.0*sum;
         }
-
+        
         //
         //  X_vector
         //
         F64 sum = 0.0;
-        for ( U32 n=0; n < field.Size(); ++n )
+        for ( U32 n=0; n < field.Size(qpol_i.collIndex); ++n )
         {
-            Vec3 fpos = field.GetFieldPosition( n );
-
-            F64 disti_2 = fpos.Distance2( quadrupoles[i].pos );
-            F64 delcomp = DelComp( quadrupoles[i].type, fpos, quadrupoles[i].pos );
-
-            sum += ( field.GetFieldDiff(n) * delcomp ) / ( disti_2 * disti_2 * Mathf::Sqrt( disti_2 ) );
+            Vec3 fpos = field.GetFieldPosition( qpol_i.collIndex, n );
+            
+            F64 disti_2 = fpos.Distance2( qpol_i.pos );
+            F64 delcomp = DelComp( qpol_i.type, fpos, qpol_i.pos );
+            
+            sum += ( field.GetFieldDiff(qpol_i.collIndex, n) * delcomp ) / ( disti_2 * disti_2 * Mathf::Sqrt( disti_2 ) );
         }
-
-        b(row)=2.0*sum;
-
-        row++;
+        
+        b(row) += 2.0*sum;
     }
-
-
+    
+    //
+    // Now make sure we imply a constaints between the different field fits
+    //
+    
+    /*
+    const U32 stride = charges.size() + dipoles.size() + quadrupoles.size();
+    
+    // Always take the first field as reference so start with 1
+    for ( U32 i=1; i < field.NumCollections(); ++i )
+    {
+        for ( U32 j = 0; j < stride; ++j )
+        {
+            const size_t offsetColumn = i * stride + j;
+            
+            Constraint newContraint;
+            newContraint.reference = 0.0;
+            
+            newContraint.matrixColumns.push_back( j );
+            newContraint.matrixColumns.push_back( offsetColumn );
+            
+            newContraint.matrixCoefficients.push_back(  1.0 );
+            newContraint.matrixCoefficients.push_back( -1.0 );
+            
+            constraints.push_back(newContraint);
+        }
+    }
+    */
+    
     return Error::STATUS::OK;
 }
 
@@ -711,70 +817,74 @@ Error::STATUS Fitter::AddConstraints( std::vector< Constraint > &constraints, mu
 }
 
 Error::STATUS Fitter::AddRestraints( const Configuration &conf, multiMatrix &q, multiMatrix &c, 
-	                                 std::map< std::pair< U32, Configuration::valueType >, U32 >& mColumnTranslation )
+	                                 std::map< SiteHash, U32 >& columnTranslation )
 {
-	U32 rowStride = q.Rows();
-	
-	
-	//
+    U32 rowStride = q.Rows();
+    
+    //
     //   Init the extra rows to zero
     //
-	for ( U32 i=0; i < ( mColumnTranslation.size() ); ++i )
-	{
-		for ( U32 j=0; j < ( mColumnTranslation.size() ); ++j )
-		{
-			q( rowStride+i, j ) = 0.0;
-		}
+    for ( U32 i=0; i < ( columnTranslation.size() ); ++i )
+    {
+        for ( U32 j=0; j < ( columnTranslation.size() ); ++j )
+        {
+            q( rowStride+i, j ) = 0.0;
+        }
+        
+        c( rowStride+i ) = 0.0;
+    }
+    
+    // Iterate collections!
+    for ( U32 coll=0; coll < conf.NumCollections(); ++coll )
+    {
+        //
+        //   Add the resp force constants to the diagonal of the extra rows
+        //
+        for ( U32 i=0; i < conf.RespRestr(coll); ++i )
+        {
+            const Configuration::RespRestraint *restr = conf.GetRespRestraint( coll, i );
+            const Configuration::valueType type = restr->type;
+            const U32 id = restr->ID;
+            const F32 intensity = restr->intensity;
+            F32 reference = restr->refValue;
 		
-		c( rowStride+i ) = 0.0;
-	}
-	
-	//
-    //   Add the resp force constants to the diagonal of the extra rows
-    //
-	for ( U32 i=0; i < conf.RespRestr(); ++i )
-	{
-		const Configuration::RespRestraint *restr = conf.GetRespRestraint( i );
-		const Configuration::valueType type = restr->type;
-		const U32 id = restr->ID;
-		const F32 intensity = restr->intensity;
-		F32 reference = restr->refValue;
+            //if dipole or quadrupole convert!
+            if ( type == Configuration::valueType::dipoleX ||
+                 type == Configuration::valueType::dipoleY ||
+                 type == Configuration::valueType::dipoleZ
+               )
+            {
+                reference /= 2.541748;
+            }
+            else if ( type == Configuration::valueType::qd20  ||
+                      type == Configuration::valueType::qd21c ||
+                      type == Configuration::valueType::qd21s ||
+                      type == Configuration::valueType::qd22c ||
+    		  	      type == Configuration::valueType::qd22s
+                     )
+            {
+                reference /= 1.3450351;
+            }
 		
-		//if dipole or quadrupole convert!
-    	if ( type == Configuration::valueType::dipoleX || 
-    		 type == Configuration::valueType::dipoleY ||
-    		 type == Configuration::valueType::dipoleZ
-    	   )
-    	{
-    		reference /= 2.541748;
-    	}
-    	else if ( type == Configuration::valueType::qd20  || 
-    		      type == Configuration::valueType::qd21c ||
-    		   	  type == Configuration::valueType::qd21s ||
-    		 	  type == Configuration::valueType::qd22c ||
-    		  	  type == Configuration::valueType::qd22s
-    	        )
-    	{
-    		reference /= 1.3450351;
-    	}
-		
-		//find the correct column;
-    	std::map< std::pair< U32, Configuration::valueType >, U32 >::iterator it = mColumnTranslation.find( std::make_pair( id, type ) );
+            //find the correct column;
+            const SiteHash hash = GenerateSiteHash( coll, id, type );
+            std::map< SiteHash, U32 >::iterator it = columnTranslation.find( hash );
     	
-    	if ( it == mColumnTranslation.end() )
-    	{
-    		Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) ) 
-    			                  + "  is not a fitting combination, so cannot be restrained !" );
+            if ( it == columnTranslation.end() )
+            {
+                Error::Warn( std::cout, "The combination of id " + Util::ToString( id ) + " and type " + Util::ToString( static_cast<U32>( type ) )
+                                      + "  is not a fitting combination, so cannot be restrained !" );
     		
-    		return Error::STATUS::FAILED_CONSTR_R;
-    	}
+                return Error::STATUS::FAILED_CONSTR_R;
+            }
 		
-    	U32 index = it->second;
+            U32 index = it->second;
     	
-		q( rowStride+i, index ) =  1.0f * intensity;
-		c( rowStride+i ) = reference;
-	}
-	
+            q( rowStride+i, index ) =  1.0f * intensity;
+            c( rowStride+i ) = reference;
+        }
+    }
+    
 	return Error::STATUS::OK;
 }
 
@@ -789,16 +899,18 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
 
     //map that we will use for the constraint to easily turn an ID and type into the correct column;
     //std::pair< U32, Configuration::valueType > is turned into a hash
-    std::map< std::pair< U32, Configuration::valueType >, U32 > mColumnTranslation;
+    std::map< SiteHash, U32 > columnTranslation;
+    
 	
-	TabulateSites( conf, charges, dipoles, quadrupoles, mColumnTranslation );
+    TabulateSites( conf, charges, dipoles, quadrupoles, columnTranslation );
     
     //
-    //	Translate the constraints to an easy format
+    //	Translate the user constraints to an easy format
     //
+   
     std::vector< Constraint > constraints;
     
-    TabulateConstraints( conf, constraints,  mColumnTranslation );
+    TabulateConstraints( conf, constraints,  columnTranslation );
      
     multiMatrix a( 200, 200 ), b( 200 );
     multiMatrix x(200);
@@ -806,7 +918,7 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
     //
     //  Construct AX = b
     //
-    GenerateMatrices( charges, dipoles, quadrupoles, field, a, b );   
+    GenerateMatrices( charges, dipoles, quadrupoles, field, a, b );
 
     //init x as b;
     x = b;
@@ -814,9 +926,17 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
     //
     //  Determine what kernel from lapack to use, based on the availability of constraints and restraints
     //
+    
+    U32 numRestraints  = 0;
+    
+    for ( U32 coll=0; coll < conf.NumCollections(); ++coll )
+    {
+        numRestraints += conf.RespRestr(coll);
+    }
+    
     FitKernel kernel;
     
-    if ( constraints.size() > 0 && conf.RespRestr() > 0 )
+    if ( constraints.size() > 0 && numRestraints > 0 )
     {
     	//Error::Warn( std::cout, "The system currently does not support both constraints and restraints at the same time!" );
     	//return Error::STATUS::FAILED_UNSUP_PARAM_COMBO;
@@ -827,7 +947,7 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
     {
     	kernel = FitKernel::DGESV;
     }
-    else if ( conf.RespRestr() > 0 )
+    else if ( numRestraints > 0 )
     {
     	kernel = FitKernel::DGELS;
     }
@@ -874,7 +994,7 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
     	Console::Report( std::cout, "[END]" );
     	
     	//add the restraints to matrices and b
-    	AddRestraints( conf, a, b, mColumnTranslation );
+    	AddRestraints( conf, a, b, columnTranslation );
     	
     	U32 M = a.Rows();
     	U32 N = a.Columns();
@@ -910,7 +1030,7 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
     	Console::Report( std::cout, "[END]" );
     	
     	//add the restraints to matrices and b
-    	AddRestraints( conf, a, b, mColumnTranslation );
+    	AddRestraints( conf, a, b, columnTranslation );
     	
     	if ( verbose )
     	{
@@ -968,28 +1088,24 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
     F32 f=2.541748;
     F32 f1=1.3450351;
 
-    U32 stride = 0;
+
     //Set the fitted results in the configuration
-    for ( U32 i=0; i < charges.size(); ++i )
+    for ( const ChargeSite &charge : charges )
     {
-        conf.GetSiteMod( charges[i].confIndex )->SetValue( charges[i].type, x(stride) );
-    
-        stride++;
+        conf.GetSiteMod( charge.collIndex, charge.confIndex )->SetValue( charge.type, x(charge.stride) );
     }
 
-    for ( U32 i=0; i < dipoles.size(); ++i )
+    for ( const DipoleSite &dipole : dipoles )
     {
-        conf.GetSiteMod( dipoles[i].confIndex )->SetValue( dipoles[i].type, f * x(stride) );
-        
-        stride++;
+        conf.GetSiteMod( dipole.collIndex, dipole.confIndex )->SetValue( dipole.type, f * x(dipole.stride) );
     }
  
-    for ( U32 i=0; i < quadrupoles.size(); ++i )
+    for ( const QuadrupoleSite &qpol : quadrupoles )
     {
-        conf.GetSiteMod( quadrupoles[i].confIndex )->SetValue( quadrupoles[i].type, f1 * x(stride) );
+        conf.GetSiteMod( qpol.collIndex, qpol.confIndex )->SetValue( qpol.type, f1 * x(qpol.stride) );
 
-        stride++;   
     }
+
     
     return Error::STATUS::OK;
 }

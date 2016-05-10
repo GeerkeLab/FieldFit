@@ -16,7 +16,7 @@ class Configuration
 {
 public:
 
-    enum class valueType
+    enum valueType
     {
         charge  = 0,
         dipoleX = 1,
@@ -28,7 +28,6 @@ public:
         qd22c   = 7,
         qd22s   = 8
     };
-    
     
     struct ValueConstraint
     {
@@ -106,29 +105,42 @@ public:
         F32 values[9];     
         F32 permValues[9];
     };
+    
+    struct ConfigCollection
+    {
+        std::map< U32, U32 > indices;
+        std::vector< FitSite > fitSites;
+        
+        std::vector< ValueConstraint > valueConstraints;
+        std::vector< SymConstraint > symConstraints;
+        std::vector< SumConstraint > sumConstraints;
+        std::vector< RespRestraint > respConstraints;
+    };
 
     Configuration( const BlockParser & );
 
     Error::STATUS GetStatus() const;
 
-    U32 Size() const;
+    size_t NumCollections() const;
     
-    U32 ValueConstr() const;
-    U32 SymConstr() const;
-    U32 SumConstr() const;
-    U32 RespRestr() const;
+    U32 FitSites( const U32 coll ) const;
+    
+    U32 ValueConstr( const U32 coll ) const;
+    U32 SymConstr( const U32 coll ) const;
+    U32 SumConstr( const U32 coll ) const;
+    U32 RespRestr( const U32 coll ) const;
    
-    U32 GetIndexFromID( const U32 id );
-    bool IdIsPresent( const U32 id );
+    U32 GetIndexFromID( const U32 coll, const U32 id );
+    bool IdIsPresent( const U32 coll, const U32 id );
     U32 UnknownID();
     
-    const FitSite *GetSite( const U32 index ) const;   
-    FitSite *GetSiteMod( const U32 index );
+    const FitSite *GetSite( const U32 coll, const U32 index ) const;
+    FitSite *GetSiteMod( const U32 coll, const U32 index );
 
-    const ValueConstraint * GetValueConstraint( const U32 index ) const;   
-    const SymConstraint  * GetSymConstraint( const U32 index ) const; 
-    const SumConstraint  * GetSumConstraint( const U32 index ) const; 
-    const RespRestraint  * GetRespRestraint( const U32 index ) const; 
+    const ValueConstraint * GetValueConstraint( const U32 coll, const U32 index ) const;
+    const SymConstraint   * GetSymConstraint(   const U32 coll, const U32 index ) const;
+    const SumConstraint   * GetSumConstraint(   const U32 coll, const U32 index ) const;
+    const RespRestraint   * GetRespRestraint(   const U32 coll, const U32 index ) const;
     
     void Raport( std::ostream &stream );
 
@@ -144,13 +156,7 @@ private:
 	
     Error::STATUS mStatus;
 
-    std::map< U32, U32 > mIndices;
-    std::vector< FitSite > mFitSites;
-    
-    std::vector< ValueConstraint > mValueConstraints;
-    std::vector< SymConstraint > mSymConstraints;
-    std::vector< SumConstraint > mSumConstraints;
-    std::vector< RespRestraint > mRespConstraints;
+    std::vector< ConfigCollection > mConfigCollections;
 };
 
 #endif

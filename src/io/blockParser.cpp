@@ -18,30 +18,43 @@ BlockParser::BlockParser( const std::vector< std::string > &files )
 	}
 }
 	
-const Block * BlockParser::GetBlock( const std::string &block ) const
+const std::vector< Block > * BlockParser::GetBlockArray( const std::string &block ) const
 {
-	std::map< std::string, Block >::const_iterator it = mBlocks.find( block );
+	std::map< std::string, std::vector< Block > >::const_iterator it = mBlocks.find( block );
 	
 	if ( it == mBlocks.end() )
 	{
-		return NULL;	
+		return nullptr;
 	}
 	
 	return &it->second;
+}
+
+const Block * BlockParser::GetBlock( const std::string &block ) const
+{
+    std::map< std::string, std::vector< Block > >::const_iterator it = mBlocks.find( block );
+    
+    if ( it == mBlocks.end() )
+    {
+        return nullptr;
+    }
+    
+    const std::vector< Block > &blockArray = it->second;
+    
+    // Now perform size test
+    if ( blockArray.size() != 1 )
+    {
+        Error::Warn( std::cout, "A call to GetBlock suggests that only one block of requested type" + block +" should exist.");
+        
+        return nullptr;
+    }
+    
+    return blockArray.data();
 }
 	
 Error::STATUS BlockParser::GetStatus() const
 {
 	return mStatus;
-}
-
-void BlockParser::Debug()
-{
-	for ( std::map< std::string, Block >::iterator it = mBlocks.begin(), itend = mBlocks.end();
-		  it != itend; ++it )
-	{
-		it->second.Debug();	
-	}
 }
 
 Error::STATUS BlockParser::ParseFile( const std::string &file )
@@ -81,7 +94,14 @@ Error::STATUS BlockParser::ParseFile( const std::string &file )
     		
     		if ( tn.IsEnd() )
     		{
-    			mBlocks.insert( std::pair< std::string, Block >( title, Block( title, tn.GetBuffer() ) ) );	
+                std::map< std::string, std::vector< Block > >::const_iterator it = mBlocks.find( title );
+                
+                if ( it == mBlocks.end() )
+                {
+                    mBlocks.insert( std::pair< std::string, std::vector< Block > >( title, std::vector< Block >() ) );
+                }
+                
+                mBlocks[title].push_back( Block( title, tn.GetBuffer() ) );
     			
     			tn.Empty();
     			title = "";
@@ -89,9 +109,17 @@ Error::STATUS BlockParser::ParseFile( const std::string &file )
     	}
     }
 	
+    // final flush
     if ( tn.IsEnd() && tn.Size() > 0 && title.size() > 0 )
     {
-    	mBlocks.insert( std::pair< std::string, Block >( title, Block( title, tn.GetBuffer() ) ) );	
+        std::map< std::string, std::vector< Block > >::const_iterator it = mBlocks.find( title );
+        
+        if ( it == mBlocks.end() )
+        {
+            mBlocks.insert( std::pair< std::string, std::vector< Block > >( title, std::vector< Block >() ) );
+        }
+        
+        mBlocks[title].push_back( Block( title, tn.GetBuffer() ) );
     }
     
 	stream.close();

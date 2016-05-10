@@ -38,7 +38,7 @@ void multiMatrix::FitIndices( U32 i, U32 j )
         for ( std::vector< std::vector< F64 > >::iterator it = mInternalMatrix.begin(),
             itend = mInternalMatrix.end(); it != itend; ++it )
         {
-            it->resize( mWidth, 0 );
+            it->resize( mWidth, 0.0 );
         }
     }
 }
@@ -68,7 +68,7 @@ void multiMatrix::Report( const std::string& blockName )
     {
         for ( U32 j=0; j < Columns(); ++j )
         {
-           printf( "  %12.5f", mInternalMatrix[i][j] );
+           printf( "  %8.2f", mInternalMatrix[i][j] );
         }
 
          printf( "\n" );

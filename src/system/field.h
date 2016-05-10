@@ -11,37 +11,53 @@
 
 class Configuration;
 
+
+struct FieldCollection
+{
+    std::vector< Vec3 > fieldPositions;
+    std::vector< F64 >  fieldPotential;
+    
+    std::vector< F64 >  permPotential;
+};
+
+struct EFieldCollection
+{
+    std::vector< Vec3 > efieldSite;
+};
+
+
 class Field
 {
 public:
 
     Field( const BlockParser &bp );
 
-    F64 GetGridPointPotential( const Vec3 &gridPoint, const Configuration &conf ) const;
+    F64 GetGridPointPotential( const U32 coll, const Vec3 &gridPoint, const Configuration &conf ) const;
     
     Error::STATUS SetPermField( const Configuration &conf );
     
     Error::STATUS GetStatus() const;
 
-    U32 Size() const;
-    const Vec3 & GetFieldPosition( const U32 index ) const;
-    
-    F64 GetFieldPotential( const U32 index ) const;
-    F64 GetFieldDiff( const U32 index ) const;
-    F64 GetPermPotential( const U32 index ) const;
+    size_t Size( const U32 collection ) const;
+    const Vec3 & GetFieldPosition( const U32 collection, const U32 index ) const;
+    F64 GetFieldDiff( const U32 collection, const U32 index ) const;
     
     F64 GetFieldStats( const Configuration &conf ) const;
     
+    size_t NumCollections() const;
+    
 private:
-
+    
+    Error::STATUS ReadFieldSites( const BlockParser &bp );
+    Error::STATUS ReadElectricFieldSites( const BlockParser &bp );
+    
+    F64 GetFieldPotential( const U32 collection, const U32 index ) const;
+    F64 GetPermPotential( const U32 collection, const U32 index ) const;
+    
     Error::STATUS mStatus;
 
-    //std::vector< Vec3 > mGenerationSites;
-
-    std::vector< Vec3 > mFieldPositions;
-    std::vector< F64 >  mFieldPotential;
-    
-    std::vector< F64 >  mPermPotential;
+    std::vector< FieldCollection > mCollections;
+    std::vector< EFieldCollection > mEFieldCollections;
 };
 
 

@@ -19,18 +19,18 @@ public:
 	
 	BlockParser( const std::vector< std::string >  &files  );	
 	
-	const Block * GetBlock( const std::string &block ) const;
+	const std::vector< Block > * GetBlockArray( const std::string &block ) const;
 	
+    const Block * GetBlock( const std::string &block ) const;
+    
 	Error::STATUS GetStatus() const;
 	      
-	void Debug();
-	
 private:	
 	
 	Error::STATUS ParseFile( const std::string &file );
 	
 	Error::STATUS mStatus;
-	std::map< std::string, Block > mBlocks;
+    std::map< std::string, std::vector< Block > > mBlocks;
 };
 
 #endif

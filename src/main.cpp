@@ -21,7 +21,7 @@ public:
 	CommandLine( )
 	{
 		options.insert( std::make_pair( "-v", false ) );
-		options.insert( std::make_pair( "-hi", false ) );
+		options.insert( std::make_pair( "--showinput", false ) );
 	}
 	
 	void ShowHelp()
@@ -37,7 +37,7 @@ public:
 		          << "*                                                                                                          " << std::endl
 		          << "* <<< Command line options >>>                                                                             " << std::endl
 		          << "*    -v                              =>   Show verbose output                                              " << std::endl
-		          << "*    -hi                             =>   Do not show inpu in the output fields                            " << std::endl
+		          << "*    --showinput                     =>   Show input fields                                                " << std::endl
 		          << "*                                                                                                          " << std::endl
 		          << "*  --------------------------------------------------------------------------------                        " << std::endl
 		          << "*                                                                                                          " << std::endl
@@ -258,9 +258,8 @@ int main( int argc, char** argv)
         return 1;
     }  
     
-    
     Field field( bp );
-    	
+    
     if ( Error::FAILED( field.GetStatus() ) )
     {
     	Error::Warn( std::cout, "Unable to generate a field input, fatal error!" );
@@ -277,10 +276,17 @@ int main( int argc, char** argv)
         return 1;
     }
     
-    if ( ! cline.GetOption("-hi") )
+    if ( cline.GetOption("--showinput") )
     {
     	conf.Raport( std::cout );
-    }    
+    }
+    
+    if ( field.NumCollections() != conf.NumCollections() )
+    {
+        Error::Warn( std::cout, "Number of collections (Data frames) in the configuration section is not the same as the number of field collections!" );
+        
+        return 1;
+    }
     
     //init the permanent field
     if ( Error::FAILED( field.SetPermField( conf ) ) )
