@@ -107,7 +107,7 @@ namespace Fitter
     /*
 	**	Gather the configuration constraints in a final pre-matrix format
 	*/
-    Error::STATUS TabulateConstraints( const Configuration &conf, std::vector< Constraint > & constraints, std::map< SiteHash, U32 >& mColumnTranslation );
+    Error::STATUS TabulateConstraints( const Configuration &conf, const Field &field,std::vector< Constraint > & constraints, std::map< SiteHash, U32 >& mColumnTranslation );
    
     /*
 	**	Generate the matrices from the pretabulated charges, dipoles and qpols

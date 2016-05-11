@@ -74,6 +74,19 @@ public:
     	const F32  		intensity;
     };
     
+    struct UnionContraint
+    {
+        UnionContraint( U32 coll_i, U32 id_i, U32 coll_s_j, U32 coll_e_j, U32 id_j, const std::vector< valueType > &types ) :
+        collection_i( coll_i ), ID_i( id_i ), collectionStart_j( coll_s_j ), collectionEnd_j( coll_e_j ), ID_j( id_j ), types( types )
+        {}
+        const U32 collection_i;
+        const U32 ID_i;
+        const U32 collectionStart_j;
+        const U32 collectionEnd_j;
+        const U32 ID_j;
+        const std::vector< valueType > types;
+    };
+    
     struct FitSite
     {	
         FitSite( const U32 id, const std::string &n, const F32 charge, const F32 x, const F32 y, const F32 z ) :
@@ -116,6 +129,7 @@ public:
         std::vector< SumConstraint > sumConstraints;
         std::vector< RespRestraint > respConstraints;
     };
+    
 
     Configuration( const BlockParser & );
 
@@ -129,10 +143,11 @@ public:
     U32 SymConstr( const U32 coll ) const;
     U32 SumConstr( const U32 coll ) const;
     U32 RespRestr( const U32 coll ) const;
-   
-    U32 GetIndexFromID( const U32 coll, const U32 id );
+    U32 UnionContr() const;
+    
+    U32 GetIndexFromID( const U32 coll, const U32 id ) const;
     bool IdIsPresent( const U32 coll, const U32 id );
-    U32 UnknownID();
+    U32 UnknownID() const;
     
     const FitSite *GetSite( const U32 coll, const U32 index ) const;
     FitSite *GetSiteMod( const U32 coll, const U32 index );
@@ -141,11 +156,13 @@ public:
     const SymConstraint   * GetSymConstraint(   const U32 coll, const U32 index ) const;
     const SumConstraint   * GetSumConstraint(   const U32 coll, const U32 index ) const;
     const RespRestraint   * GetRespRestraint(   const U32 coll, const U32 index ) const;
+    const UnionContraint  * GetUnionConstraint(   const U32 index ) const;
     
     void Raport( std::ostream &stream );
 
 private:
 	
+    Error::STATUS FlagSanityCheck( U32 convFlags ) const;
 	Error::STATUS ReadSites( const BlockParser & );
 	Error::STATUS ReadFitSites( const BlockParser & );
 	Error::STATUS ReadPermSites( const BlockParser & );
@@ -153,10 +170,12 @@ private:
 	Error::STATUS ReadSymConstraints( const BlockParser & );
 	Error::STATUS ReadSumConstraints( const BlockParser & );
 	Error::STATUS ReadRespRestraints( const BlockParser & );
-	
+	Error::STATUS ReadUnionFit( const BlockParser & );
+    
     Error::STATUS mStatus;
 
     std::vector< ConfigCollection > mConfigCollections;
+    std::vector< UnionContraint > mUnionConstraint;
 };
 
 #endif

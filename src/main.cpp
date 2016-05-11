@@ -146,7 +146,7 @@ public:
 		          << "*    -----                                                                                                 " << std::endl
 		          << "*                                                                                                          " << std::endl
 		          << "*    [SUMCONSTR]                                                                                           " << std::endl
-		          << "*        # Number of symmetry constraints                                                                  " << std::endl
+		          << "*        # Number of sum constraints                                                                       " << std::endl
 		          << "*        {SCONSTR}                                                                                         " << std::endl
 		          << "*                                                                                                          " << std::endl
 		          << "*        FOR {i} IN {SCONSTR}                                                                              " << std::endl
@@ -163,7 +163,7 @@ public:
 		          << "*    -----                                                                                                 " << std::endl
 		          << "*                                                                                                          " << std::endl
 		          << "*    [RESP]                                                                                                " << std::endl
-		          << "*        # Number of symmetry constraints                                                                  " << std::endl
+		          << "*        # Number of RESP restraints                                                                       " << std::endl
 		          << "*        {R-RESTRAINTS}                                                                                    " << std::endl
 		          << "*                                                                                                          " << std::endl
 		          << "*        FOR {i} IN {R-RESTRAINTS}                                                                         " << std::endl
@@ -178,10 +178,54 @@ public:
 		          << "*                 #force constant for resp                                                                 " << std::endl
 		          << "*                 {FORCE-CONST_i_j}                                                                        " << std::endl 
 		          << "*                                                                                                          " << std::endl
+                  << "*    -----                                                                                                 " << std::endl
+                  << "*                                                                                                          " << std::endl
+                  << "*    [UNION]                                                                                               " << std::endl
+                  << "*        # Number of unions                                                                                " << std::endl
+                  << "*        {N_UNIONS}                                                                                        " << std::endl
+                  << "*                                                                                                          " << std::endl
+                  << "*        FOR {i} IN {N_UNIONS}                                                                             " << std::endl
+                  << "*            {TYPE_FLAGS} #for both i-j combined                                                           " << std::endl
+                  << "*            # an id and flags to use for the Resp restraint                                               " << std::endl
+                  << "*            {COLLECTION_i} {ID_i}                                                                         " << std::endl
+                  << "*            {COLLECTION_START_j} {COLLECTION_END_j} {ID_j}                                                " << std::endl
+                  << "*                                                                                                          " << std::endl
 		          << "*    [END]                                                                                                 " << std::endl;
 
 	}
 	
+    Error::STATUS ReadFilesFromList( const std::string &file )
+    {
+        std::ifstream stream;
+        
+        stream.open( file.c_str(), std::ios::in );
+        
+        if ( !stream.is_open() )
+        {
+            Error::Warn( std::cout, "Unable to open file "+file+" !" );
+            return Error::STATUS::FAILED_IO;
+        }
+        
+        std::string line = "";
+        while ( getline ( stream, line ) )
+        {
+            line = Util::Trim( line );
+            
+            if ( line.size() > 0 )
+            {
+                //test for comment
+                if ( line[0] == '#' )
+                {
+                    continue;
+                }
+            
+                files.push_back( line );
+            }
+        }
+        
+        return Error::STATUS::OK;
+    }
+    
 	Error::STATUS Parse( int argc, char** argv )
 	{
 		for ( S32 i=0; i < argc; ++i )
@@ -195,6 +239,25 @@ public:
 				
 				return Error::STATUS::FAILED_COMMAND_PARSE;
 			}
+            else if ( argument.compare( "-f" ) == 0 )
+            {
+                if ( i+1 == argc)
+                {
+                    Error::Warn( std::cout, std::string("Option -f requires an argument!" ) );
+                                
+                    return Error::STATUS::FAILED_COMMAND_PARSE;
+                }
+                
+                // advance here too
+                ++i;
+                
+                Error::STATUS status = ReadFilesFromList( std::string( argv[i] ) );
+                
+                if ( Error::FAILED(status) )
+                {
+                    return status;
+                }
+            }
 			else if ( argument[0] == '-' )
 			{
 				std::map< std::string, bool >::iterator it = options.find( argument );

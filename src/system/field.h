@@ -32,7 +32,11 @@ public:
 
     Field( const BlockParser &bp );
 
+    bool ContainsElectricField() const;
+    
     F64 GetGridPointPotential( const U32 coll, const Vec3 &gridPoint, const Configuration &conf ) const;
+    F64 GetAlpha( const U32 coll, const U32 fitSite, const Configuration &conf ) const;
+    const Vec3 & GetEfield( const U32 coll, const U32 fitSite ) const;
     
     Error::STATUS SetPermField( const Configuration &conf );
     

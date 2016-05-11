@@ -6,6 +6,8 @@
 
 #include "../fitting/fitter.h"
 
+#include "../system/constants.h"
+
 Field::Field( const BlockParser &bp )
 {
     mStatus = ReadFieldSites( bp );
@@ -38,6 +40,11 @@ Field::Field( const BlockParser &bp )
             return;
         }
     }
+}
+
+bool Field::ContainsElectricField() const
+{
+    return mEFieldCollections.size() > 0;
 }
 
 Error::STATUS Field::ReadFieldSites( const BlockParser &bp )
@@ -78,7 +85,10 @@ Error::STATUS Field::ReadFieldSites( const BlockParser &bp )
         
         for ( U32 i=0; i < potentialSites; ++i )
         {
+            // NOTE e / bohr unit
             F64 potential = block.GetToken( index )->GetValue< F64 >();
+            
+            // NOTE all in bohr
             F32 x = block.GetToken( index+1 )->GetValue< F32 >();
             F32 y = block.GetToken( index+2 )->GetValue< F32 >();
             F32 z = block.GetToken( index+3 )->GetValue< F32 >();
@@ -97,6 +107,8 @@ Error::STATUS Field::ReadFieldSites( const BlockParser &bp )
     
     return Error::STATUS::OK;
 }
+
+
 
 Error::STATUS Field::ReadElectricFieldSites( const BlockParser &bp )
 {
@@ -134,13 +146,23 @@ Error::STATUS Field::ReadElectricFieldSites( const BlockParser &bp )
         
         for ( U32 i=0; i < potentialSites; ++i )
         {
-            std::cout << "\t site: " << i << std::endl;
+            
+            
             
             F32 ex = block.GetToken( index+2 )->GetValue< F32 >();
             F32 ey = block.GetToken( index+3 )->GetValue< F32 >();
             F32 ez = block.GetToken( index+4 )->GetValue< F32 >();
             
-            mEFieldCollections[coll].efieldSite.push_back( Vec3( ex, ey, ez ) );
+            // kJ / mol nm e
+            Vec3 efield( ex, ey, ez );
+            
+            // convert to e / nm^2
+            efield /= Constants::four_pi_eps_rcp;
+            
+            // convert to e / bohr^2
+            efield /= ( Constants::nm_bohr * Constants::nm_bohr );
+            
+            mEFieldCollections[coll].efieldSite.push_back( efield );
             
             index += 5;
         }
@@ -183,9 +205,6 @@ F64 Field::GetPermPotential( const U32 collection, const U32 index ) const
 
 F64 Field::GetGridPointPotential( const U32 coll, const Vec3 &gridPoint, const Configuration &conf ) const
 {	
-	const F64 f=2.541748;
-    const F64 f1=1.3450351;
-	
     F64 potential = 0.0;
     
 	for ( U32 i=0; i < conf.FitSites(coll); ++i )
@@ -218,11 +237,11 @@ F64 Field::GetGridPointPotential( const U32 coll, const Vec3 &gridPoint, const C
         		
         		const F64 dcoef = Fitter::DelComp( type, gridPoint, pos ) / ( dist_2 * dist ); 
         		
-        		potential += ( dcoef * ( site->GetValue( type ) / f ) );
+                potential += ( dcoef * ( site->GetValue( type ) / Constants::eBohr_D ) );
         		
         		if ( permFlags & ( 1 << j ) )
                 {
-        			potential += ( dcoef * ( site->GetPermValue( type ) / f ) );
+                    potential += ( dcoef * ( site->GetPermValue( type ) / Constants::eBohr_D ) );
                 }
         	}
         }
@@ -235,11 +254,11 @@ F64 Field::GetGridPointPotential( const U32 coll, const Vec3 &gridPoint, const C
         	
 				const F64 qcoef = Fitter::DelComp( type, gridPoint, pos ) / ( dist_2 * dist_2 * dist ); 
 				
-				potential += ( qcoef  * ( site->GetValue( type ) / f1 ) );
+                potential += ( qcoef  * ( site->GetValue( type ) / Constants::eBohr2_DA ) );
 				
 				if ( permFlags & ( 1 << j ) )
                 {
-					potential += ( qcoef  * ( site->GetPermValue( type ) / f1 ) );
+                    potential += ( qcoef  * ( site->GetPermValue( type ) / Constants::eBohr2_DA ) );
                 }
 			
 			}
@@ -248,7 +267,34 @@ F64 Field::GetGridPointPotential( const U32 coll, const Vec3 &gridPoint, const C
     
     return potential;
 }
+
+F64 Field::GetAlpha( const U32 coll, const U32 siteIndex, const Configuration &conf ) const
+{
+    F64 alpha = 0.0;
     
+    if ( ContainsElectricField() )
+    {
+        const Configuration::FitSite *site = conf.GetSite( coll, siteIndex );
+        const EFieldCollection &ecoll = mEFieldCollections[coll];
+        const Vec3 &efield = ecoll.efieldSite[siteIndex];
+        
+        const F64 alpha_xx = ( site->GetValue( Configuration::valueType::dipoleX ) * Constants::D_eBohr / efield[0] ) * Constants::bohr3_nm3;
+        const F64 alpha_yy = ( site->GetValue( Configuration::valueType::dipoleY ) * Constants::D_eBohr / efield[1] ) * Constants::bohr3_nm3;
+        const F64 alpha_zz = ( site->GetValue( Configuration::valueType::dipoleZ ) * Constants::D_eBohr / efield[2] ) * Constants::bohr3_nm3;
+        
+        alpha = ( alpha_xx + alpha_yy + alpha_zz ) / 3;
+    }
+    
+    return alpha;
+}
+
+const Vec3 & Field::GetEfield( const U32 coll, const U32 fitSite ) const
+{
+    const EFieldCollection &ecoll = mEFieldCollections[coll];
+    
+    return ecoll.efieldSite[fitSite];
+}
+
 Error::STATUS Field::SetPermField( const Configuration &conf )
 {
     U32 coll = 0;

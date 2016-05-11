@@ -7,6 +7,8 @@
 
 #include "lapacke.h"
 
+#include "../system/constants.h"
+
 Fitter::ChargeSite::ChargeSite()
 {
 
@@ -207,7 +209,7 @@ Error::STATUS Fitter::TabulateSites( const Configuration &conf, std::vector< Cha
     return Error::STATUS::OK;
 }
 
-Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vector< Constraint > & constraints, std::map< SiteHash, U32 >& columnTranslation )
+Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, const Field &field, std::vector< Constraint > & constraints, std::map< SiteHash, U32 >& columnTranslation )
 {
     // Iterate collections!
     for ( U32 coll=0; coll < conf.NumCollections(); ++coll )
@@ -215,7 +217,7 @@ Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vecto
     
         //
         //	We now convert different constraints to one general format
-        //  For dipoles and qpols convert input units to compute units using constants 2.541748 and 1.3450351
+        //  For dipoles and qpols convert input units to compute units using constants eBohr_D and eBohr2_DA
         //
 	
         for ( U32 i=0; i < conf.ValueConstr(coll); ++i )
@@ -231,7 +233,7 @@ Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vecto
                  type == Configuration::valueType::dipoleZ
                 )
             {
-                val /= 2.541748;
+                val /= Constants::eBohr_D;
             }
             else if ( type == Configuration::valueType::qd20  ||
                       type == Configuration::valueType::qd21c ||
@@ -240,7 +242,7 @@ Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vecto
     		  	      type == Configuration::valueType::qd22s
                      )
             {
-                val /= 1.3450351;
+                val /= Constants::eBohr2_DA;
             }
     	
             //find the correct column;
@@ -324,7 +326,7 @@ Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vecto
                      type == Configuration::valueType::dipoleZ
                     )
                 {
-                    coefficientScaling = 2.541748;
+                    coefficientScaling = Constants::eBohr_D;
                 }
                 else if ( type == Configuration::valueType::qd20  ||
                           type == Configuration::valueType::qd21c ||
@@ -333,7 +335,7 @@ Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vecto
                           type == Configuration::valueType::qd22s
                          )
                 {
-                    coefficientScaling = 1.3450351;
+                    coefficientScaling = Constants::eBohr2_DA;
                 }
             
                 const SiteHash hash = GenerateSiteHash( coll, id, type );
@@ -356,6 +358,143 @@ Error::STATUS Fitter::TabulateConstraints( const Configuration &conf, std::vecto
             constraints.push_back( Constraint( targetColumns, targetCoefficients, reference ) );
         }
     }
+    
+    //
+    // Add union constraint
+    //
+    
+    for ( U32 i=0; i < conf.UnionContr(); ++i )
+    {
+        const Configuration::UnionContraint *constr = conf.GetUnionConstraint(i);
+        
+        std::vector< U32 > targetColumns;
+        std::vector< F32 > targetCoefficients;
+        
+        const U32 coll_i = constr->collection_i;
+        const U32 id_i = constr->ID_i;
+        const U32 siteIndex_i = conf.GetIndexFromID( coll_i, id_i );
+    
+        const U32 id_j = constr->ID_j;
+        
+        if ( siteIndex_i == conf.UnknownID() )
+        {
+            Error::Warn( std::cout, "ID " + Util::ToString( id_i ) + " for [UNION] constraint is invalid!" );
+            
+            return Error::STATUS::FAILED_CONSTR_R;
+        }
+        
+        
+        // Iterate j coll range
+        for ( U32 coll_j=constr->collectionStart_j; coll_j <= constr->collectionEnd_j; ++coll_j )
+        {
+            targetColumns.clear();
+            targetCoefficients.clear();
+            
+            const U32 siteIndex_j = conf.GetIndexFromID( coll_j, id_j );
+            
+            if ( siteIndex_j == conf.UnknownID() )
+            {
+                Error::Warn( std::cout, "ID " + Util::ToString( id_j ) + " for [UNION] constraint is invalid!" );
+                
+                return Error::STATUS::FAILED_CONSTR_R;
+            }
+            
+            // Iterate all types
+            for ( Configuration::valueType type : constr->types )
+            {
+                //if dipole or quadrupole convert!
+                F32 coefficientScaling_i = 1.0;
+                F32 coefficientScaling_j = 1.0;
+                
+                if ( type == Configuration::valueType::dipoleX )
+                {
+                    if ( !field.ContainsElectricField() )
+                    {
+                        Error::Warn( std::cout, "Tried to apply union constraints to dipoles, but electric fields are unknown at the fit sites!" );
+                        
+                        return Error::STATUS::FAILED_CONSTR_R;
+                    }
+                    
+                    const Vec3 &field_i = field.GetEfield( coll_i, siteIndex_i );
+                    const Vec3 &field_j = field.GetEfield( coll_j, siteIndex_j );
+                    
+                    coefficientScaling_i = 1.0 / field_i[0];
+                    coefficientScaling_j = 1.0 / field_j[0];
+                }
+                else if ( type == Configuration::valueType::dipoleY )
+                {
+                    if ( !field.ContainsElectricField() )
+                    {
+                        Error::Warn( std::cout, "Tried to apply union constraints to dipoles, but electric fields are unknown at the fit sites!" );
+                        
+                        return Error::STATUS::FAILED_CONSTR_R;
+                    }
+                    
+                    const Vec3 &field_i = field.GetEfield( coll_i, siteIndex_i );
+                    const Vec3 &field_j = field.GetEfield( coll_j, siteIndex_j );
+                    
+                    coefficientScaling_i = 1.0 / field_i[1];
+                    coefficientScaling_j = 1.0 / field_j[1];
+                }
+                else if ( type == Configuration::valueType::dipoleZ )
+                {
+                    if ( !field.ContainsElectricField() )
+                    {
+                        Error::Warn( std::cout, "Tried to apply union constraints to dipoles, but electric fields are unknown at the fit sites!" );
+                        
+                        return Error::STATUS::FAILED_CONSTR_R;
+                    }
+                    
+                    const Vec3 &field_i = field.GetEfield( coll_i, siteIndex_i );
+                    const Vec3 &field_j = field.GetEfield( coll_j, siteIndex_j );
+                    
+                    coefficientScaling_i = 1.0 / field_i[2];
+                    coefficientScaling_j = 1.0 / field_j[2];
+                }
+                else if ( type == Configuration::valueType::qd20  ||
+                         type == Configuration::valueType::qd21c ||
+                         type == Configuration::valueType::qd21s ||
+                         type == Configuration::valueType::qd22c ||
+                         type == Configuration::valueType::qd22s
+                         )
+                {
+                    Error::Warn( std::cout, "Qpols not supported for union constraints!" );
+                    
+                    return Error::STATUS::FAILED_CONSTR_R;
+                }
+                
+                const SiteHash hash_i = GenerateSiteHash( coll_i, id_i, type );
+                const SiteHash hash_j = GenerateSiteHash( coll_j, id_j, type );
+                
+                std::map< SiteHash, U32 >::iterator it_i = columnTranslation.find( hash_i );
+                std::map< SiteHash, U32 >::iterator it_j = columnTranslation.find( hash_j );
+                
+                if ( it_i == columnTranslation.end() )
+                {
+                    Error::Warn( std::cout, "The combination of id " + Util::ToString( id_i ) + " and type " + Util::ToString( static_cast<U32>( type ) )
+                                + "  is not a fitting combination, so cannot be constrained !" );
+                    
+                    return Error::STATUS::FAILED_CONSTR_R;
+                }
+                
+                if ( it_j == columnTranslation.end() )
+                {
+                    Error::Warn( std::cout, "The combination of id " + Util::ToString( id_j ) + " and type " + Util::ToString( static_cast<U32>( type ) )
+                                + "  is not a fitting combination, so cannot be constrained !" );
+                    
+                    return Error::STATUS::FAILED_CONSTR_R;
+                }
+                
+                targetColumns.push_back( it_i->second );
+                targetColumns.push_back( it_j->second );
+                targetCoefficients.push_back( coefficientScaling_i *  1.0 );
+                targetCoefficients.push_back( coefficientScaling_j * -1.0 );
+            }
+            
+            constraints.push_back( Constraint( targetColumns, targetCoefficients, 0.0 ) );
+        }
+    }
+    
 	
 	return Error::STATUS::OK;
 }
@@ -854,7 +993,7 @@ Error::STATUS Fitter::AddRestraints( const Configuration &conf, multiMatrix &q, 
                  type == Configuration::valueType::dipoleZ
                )
             {
-                reference /= 2.541748;
+                reference /= Constants::eBohr_D;
             }
             else if ( type == Configuration::valueType::qd20  ||
                       type == Configuration::valueType::qd21c ||
@@ -863,7 +1002,7 @@ Error::STATUS Fitter::AddRestraints( const Configuration &conf, multiMatrix &q, 
     		  	      type == Configuration::valueType::qd22s
                      )
             {
-                reference /= 1.3450351;
+                reference /= Constants::eBohr2_DA;
             }
 		
             //find the correct column;
@@ -910,7 +1049,7 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
    
     std::vector< Constraint > constraints;
     
-    TabulateConstraints( conf, constraints,  columnTranslation );
+    TabulateConstraints( conf, field, constraints,  columnTranslation );
      
     multiMatrix a( 200, 200 ), b( 200 );
     multiMatrix x(200);
@@ -1083,10 +1222,6 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
     {
     	x.Report("MATRIX_X");
     }
-    
-    //convertion constants for the correct output format
-    F32 f=2.541748;
-    F32 f1=1.3450351;
 
 
     //Set the fitted results in the configuration
@@ -1097,12 +1232,12 @@ Error::STATUS Fitter::FitSites( Configuration &conf, const Field &field, const b
 
     for ( const DipoleSite &dipole : dipoles )
     {
-        conf.GetSiteMod( dipole.collIndex, dipole.confIndex )->SetValue( dipole.type, f * x(dipole.stride) );
+        conf.GetSiteMod( dipole.collIndex, dipole.confIndex )->SetValue( dipole.type, Constants::eBohr_D * x(dipole.stride) );
     }
  
     for ( const QuadrupoleSite &qpol : quadrupoles )
     {
-        conf.GetSiteMod( qpol.collIndex, qpol.confIndex )->SetValue( qpol.type, f1 * x(qpol.stride) );
+        conf.GetSiteMod( qpol.collIndex, qpol.confIndex )->SetValue( qpol.type, Constants::eBohr2_DA * x(qpol.stride) );
 
     }
 

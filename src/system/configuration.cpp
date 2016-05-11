@@ -51,6 +51,12 @@ Configuration::Configuration( const BlockParser &bp )
     	return;
     }
     
+    mStatus = ReadUnionFit( bp );
+    if ( Error::FAILED( mStatus ) )
+    {
+        return;
+    }
+    
     mStatus = Error::STATUS::OK;
 }
 
@@ -89,14 +95,19 @@ U32 Configuration::RespRestr( const U32 coll ) const
 	return static_cast< U32 >( mConfigCollections[coll].respConstraints.size() );
 }
 
-U32 Configuration::UnknownID()
+U32 Configuration::UnionContr() const
+{
+    return static_cast< U32 >( mUnionConstraint.size() );
+}
+
+U32 Configuration::UnknownID() const
 {	
 	return 0xFFFFFF;
 }
 
-U32 Configuration::GetIndexFromID( const U32 coll, const U32 id )
+U32 Configuration::GetIndexFromID( const U32 coll, const U32 id ) const
 {
-	std::map< U32, U32 >::iterator it = mConfigCollections[coll].indices.find( id );
+	std::map< U32, U32 >::const_iterator it = mConfigCollections[coll].indices.find( id );
 	
 	if ( it == mConfigCollections[coll].indices.end() )
 	{
@@ -165,6 +176,16 @@ const Configuration::RespRestraint * Configuration::GetRespRestraint( const U32 
         return &mConfigCollections[coll].respConstraints[ index ];
     }
 
+    return NULL;
+}
+
+const Configuration::UnionContraint  * Configuration::GetUnionConstraint(   const U32 index ) const
+{
+    if ( index < mUnionConstraint.size() )
+    {
+        return &mUnionConstraint[ index ];
+    }
+    
     return NULL;
 }
 
@@ -374,6 +395,12 @@ Error::STATUS Configuration::ReadFitSites( const BlockParser &bp )
 
             U32 convFlags = Util::ToFlags( fitflags );
         
+            Error::STATUS checkStatus;
+            if ( Error::FAILED( checkStatus = FlagSanityCheck( convFlags) ) )
+            {
+                return checkStatus;
+            }
+            
             //find the id
             std::map< U32, U32 >::iterator it = confColl.indices.find( id );
         
@@ -442,6 +469,12 @@ Error::STATUS Configuration::ReadPermSites( const BlockParser &bp )
 
             U32 convFlags = Util::ToFlags( fitflags );
         
+            Error::STATUS checkStatus;
+            if ( Error::FAILED( checkStatus = FlagSanityCheck( convFlags) ) )
+            {
+                return checkStatus;
+            }
+            
             //find the id
             std::map< U32, U32 >::iterator it = confColl.indices.find( id );
         
@@ -536,6 +569,12 @@ Error::STATUS Configuration::ReadValueConstraints( const BlockParser &bp )
             std::string fitflags = block.GetToken( index+1 )->GetToken();
             U32 convFlags = Util::ToFlags( fitflags );
         
+            Error::STATUS checkStatus;
+            if ( Error::FAILED( checkStatus = FlagSanityCheck( convFlags) ) )
+            {
+                return checkStatus;
+            }
+            
             //shift by 2
             index += 2;
         
@@ -638,6 +677,12 @@ Error::STATUS Configuration::ReadSymConstraints( const BlockParser &bp )
             std::string fitflags = block.GetToken( index+1+indices )->GetToken();
             U32 convFlags = Util::ToFlags( fitflags );
     	
+            Error::STATUS checkStatus;
+            if ( Error::FAILED( checkStatus = FlagSanityCheck( convFlags) ) )
+            {
+                return checkStatus;
+            }
+            
             //convert to an complete intermediate list
             std::vector< std::pair< U32, valueType > > constraints;
             for ( U32 j=0 ; j < indices; ++j )
@@ -736,6 +781,12 @@ Error::STATUS Configuration::ReadSumConstraints( const BlockParser &bp )
                 std::string fitflags = block.GetToken( index+1 )->GetToken();
                 U32 convFlags = Util::ToFlags( fitflags );
 			
+                Error::STATUS checkStatus;
+                if ( Error::FAILED( checkStatus = FlagSanityCheck( convFlags) ) )
+                {
+                    return checkStatus;
+                }
+                
                 for ( U32 n=0; n < 9; ++n )
                 {
                     if ( convFlags & ( 1 << n ) )
@@ -817,6 +868,12 @@ Error::STATUS Configuration::ReadRespRestraints( const BlockParser &bp )
             std::string fitflags = block.GetToken( index+1 )->GetToken();
             U32 convFlags = Util::ToFlags( fitflags );
         
+            Error::STATUS checkStatus;
+            if ( Error::FAILED( checkStatus = FlagSanityCheck( convFlags) ) )
+            {
+                return checkStatus;
+            }
+            
             //find the amount of types
             U32 typesCount = 0;
             for ( U32 j=0; j < 9; ++j )
@@ -860,6 +917,108 @@ Error::STATUS Configuration::ReadRespRestraints( const BlockParser &bp )
         }
         
         coll++;
+    }
+    
+    return Error::STATUS::OK;
+}
+
+Error::STATUS Configuration::FlagSanityCheck( U32 convFlags ) const
+{
+    // Perform a sanity check
+    // We do not allow mixing of q, dpol and qpol
+    if ( (convFlags & 0x01) && ( convFlags & 0x1FE ) )
+    {
+        Error::Warn( std::cout, "Invalid input flag detected, we do not allow mixing of charge constraints/restraints with dipole/qpol!"  );
+        return Error::STATUS::FAILED_IO;
+    }
+    else if ( (convFlags & 0xE) && ( convFlags & 0x1F0 ) )
+    {
+        Error::Warn( std::cout, "Invalid input flag detected, we do not allow mixing of dipole constraints/restraints with qpol!"  );
+        return Error::STATUS::FAILED_IO;
+    }
+    
+    return Error::STATUS::OK;
+}
+
+Error::STATUS Configuration::ReadUnionFit( const BlockParser &bp )
+{
+    const std::vector< Block > *blockArray = bp.GetBlockArray("[UNION]");
+    
+    if ( !blockArray )
+    {
+        return Error::STATUS::OPTIONAL_BLOCK;
+    }
+    
+    for ( const Block &block : *blockArray )
+    {
+        if ( block.Size() < 1 )
+        {
+            Error::Warn( std::cout, "block [UNION] was too small ( at least 1 argument expected ) !" );
+            return Error::STATUS::FAILED_IO;
+        }
+        
+        const U32 numUnions = block.GetToken( 0 )->GetValue< U32 >();
+        
+        U32 index = 1;
+        for ( U32 i=0; i < numUnions; ++i )
+        {
+            if ( block.Size() < ( index + 6 ) )
+            {
+                Error::Warn( std::cout, "block [UNION] did not have the right amount of arguments based on the size indicator !"  );
+                return Error::STATUS::FAILED_IO;
+            }
+            
+            const std::string fitflags = block.GetToken( index )->GetToken();
+            
+            std::vector< valueType > flags;
+            const U32 convFlags = Util::ToFlags( fitflags );
+            
+            Error::STATUS checkStatus;
+            if ( Error::FAILED( checkStatus = FlagSanityCheck( convFlags) ) )
+            {
+                return checkStatus;
+            }
+            
+            if ( convFlags & 0x1F0 )
+            {
+                Error::Warn( std::cout, "block [UNION] contains constraints for qpols, while these are currently not supported !"  );
+                return Error::STATUS::FAILED_IO;
+            }
+            
+            for ( U32 j=0; j < 9; ++j )
+            {
+                if ( convFlags & ( 1 << j ) )
+                {
+                    flags.push_back( static_cast< valueType >( j ) );
+                }
+            }
+            
+            const U32 collection_i = block.GetToken( index+1 )->GetValue< U32 >();
+            const U32 ID_i = block.GetToken( index+2 )->GetValue< U32 >();
+            
+            const U32 collection_start_j = block.GetToken( index+3 )->GetValue< U32 >();
+            const U32 collection_end_j = block.GetToken( index+4 )->GetValue< U32 >();
+            const U32 ID_j = block.GetToken( index+5 )->GetValue< U32 >();
+            
+            if ( collection_start_j >= mConfigCollections.size() ||
+                 collection_end_j >= mConfigCollections.size() ||
+                 collection_i >= mConfigCollections.size() )
+            {
+                Error::Warn( std::cout, "block [UNION] contains an out of range collection!"  );
+                return Error::STATUS::FAILED_IO;
+            }
+            
+            mUnionConstraint.emplace_back( UnionContraint(collection_i, ID_i, collection_start_j, collection_end_j, ID_j, flags) );
+            
+            //shift by 6
+            index += 6;
+        }
+        
+        if ( index != block.Size() )
+        {
+            Error::Warn( std::cout, "block [RESP] has more arguments than expected, based on the size indicator!"  );
+            return Error::STATUS::FAILED_IO;
+        }
     }
     
     return Error::STATUS::OK;
