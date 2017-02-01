@@ -4,25 +4,29 @@
 #include <vector>
 #include <string>
 
-/*
-**	Class to transform a string containing whitespace, tabs and tokens to a vector of tokens;
-*/
-class Tokenizer
+namespace FieldFit
 {
-public:
-	
-	void Tokenize( const std::string &line, const std::string &delimiters );
-	void Empty();
-	
-	bool IsEnd();
-	
-	size_t Size();
-	
-	const std::vector< std::string > & GetBuffer();
-	
-private:
-		
-	std::vector< std::string > mBuffer;
-};
+    /*
+    **	Class to transform a string containing whitespace, tabs and tokens to a vector of tokens;
+    */
+    class Tokenizer
+    {
+    public:
+    	
+    	void Tokenize( const std::string &line, const std::string &delimiters );
+    	void Empty();
+    	
+    	bool IsEnd();
+    	
+    	size_t Size();
+    	
+    	const std::vector< std::string > & GetBuffer();
+    	
+    private:
+    		
+    	std::vector< std::string > mBuffer;
+    };
+
+}
 
 #endif

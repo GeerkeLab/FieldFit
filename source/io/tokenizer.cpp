@@ -1,6 +1,6 @@
 #include "io/tokenizer.h"
 
-void Tokenizer::Tokenize( const std::string &line, const std::string &delimiters )
+void FieldFit::Tokenizer::Tokenize( const std::string &line, const std::string &delimiters )
 {
 	std::string::size_type position, lastPosition = 0;
 	
@@ -28,12 +28,12 @@ void Tokenizer::Tokenize( const std::string &line, const std::string &delimiters
 	}
 }
 
-size_t Tokenizer::Size()
+size_t FieldFit::Tokenizer::Size()
 {
 	return mBuffer.size();
 }
 
-bool Tokenizer::IsEnd()
+bool FieldFit::Tokenizer::IsEnd()
 {
 	if ( mBuffer.size() > 1 )
 	{
@@ -48,12 +48,12 @@ bool Tokenizer::IsEnd()
 	return false;
 }
 
-void Tokenizer::Empty()
+void FieldFit::Tokenizer::Empty()
 {
 	mBuffer.clear();	
 }
 	
-const std::vector< std::string > & Tokenizer::GetBuffer()
+const std::vector< std::string > & FieldFit::Tokenizer::GetBuffer()
 {
 	return mBuffer;
 }

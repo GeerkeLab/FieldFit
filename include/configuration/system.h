@@ -4,7 +4,9 @@
 
 #include "common/types.h"
 
+#include <string>
 #include <vector>
+#include <unordered_map>
 
 namespace FieldFit
 {
@@ -25,13 +27,24 @@ namespace FieldFit
     class Site
     {
     public:
-        	
     
-    protected:
-    
+        Site( const std::string &name,
+              const std::string &coultype,
+              const F64 coordX,
+              const F64 coordY,
+              const F64 coordZ );
+        
+        void AddFitType( FitType type );	
     
     private:
-    
+        
+        F64 mCoordX;
+        F64 mCoordY;
+        F64 mCoordZ;
+        
+        std::string mName;
+        std::string mCoulType;
+        
         bool mTypes[FitType::size];
         F64  mValues[FitType::size];
     };
@@ -39,19 +52,24 @@ namespace FieldFit
     class System
     {
     public:
-    
+        
+        System( const std::string &name );
+        ~System();
+        
         void OnInit();
         void OnUpdate();
         void OnRelease();
+        
+        void InsertSite( Site *site );
     
-    protected:
-    
-    
+        const std::string &GetName() const; 
     
     private:
     
-      
-        std::vector< Site > mSites; 
+        std::string mName;
+        std::vector< Site* > mSites; 
+        std::unordered_map< std::string, Site* > mNameToSite;
+        std::unordered_map< std::string, Site* > mCoulTypeToSite;
     };
 }
 

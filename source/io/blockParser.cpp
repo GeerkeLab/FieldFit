@@ -2,23 +2,24 @@
 #include "io/tokenizer.h"
 #include "io/block.h"
 
+#include "common/exception.h"
 #include "common/util.h"
-
 
 #include <fstream>
 #include <assert.h>
 #include <iostream>
 
-BlockParser::BlockParser( const std::vector< std::string > &files ) 
+using namespace FieldFit;
+
+FieldFit::BlockParser::BlockParser( const std::vector< std::string > &files ) 
 {
 	for( U32 i=0; i < files.size(); ++i )
 	{
 		ParseFile( files[i] );
-
 	}
 }
 	
-const std::vector< Block > * BlockParser::GetBlockArray( const std::string &block ) const
+const std::vector< Block > * FieldFit::BlockParser::GetBlockArray( const std::string &block ) const
 {
 	std::map< std::string, std::vector< Block > >::const_iterator it = mBlocks.find( block );
 	
@@ -30,7 +31,7 @@ const std::vector< Block > * BlockParser::GetBlockArray( const std::string &bloc
 	return &it->second;
 }
 
-const Block * BlockParser::GetBlock( const std::string &block ) const
+const Block * FieldFit::BlockParser::GetBlock( const std::string &block ) const
 {
     std::map< std::string, std::vector< Block > >::const_iterator it = mBlocks.find( block );
     
@@ -44,15 +45,13 @@ const Block * BlockParser::GetBlock( const std::string &block ) const
     // Now perform size test
     if ( blockArray.size() != 1 )
     {
-        //Error::Warn( std::cout, "A call to GetBlock suggests that only one block of requested type" + block +" should exist.");
-        
-        return nullptr;
+        throw ArgException( "BlockParser", "GetBlock", "A call to GetBlock suggests that only one block of requested type" + block +" should exist." );
     }
     
     return blockArray.data();
 }
 	
-void BlockParser::ParseFile( const std::string &file )
+void FieldFit::BlockParser::ParseFile( const std::string &file )
 {
 	std::ifstream stream;
 	
@@ -60,7 +59,7 @@ void BlockParser::ParseFile( const std::string &file )
 	
 	if ( !stream.is_open() )
 	{
-		//Error::Warn( std::cout, "Unable to open file "+file+" !" );
+        throw ArgException( "BlockParser", "GetBlock", "Unable to open file "+file+" !" );
 		return;
 	}
 	
@@ -118,4 +117,9 @@ void BlockParser::ParseFile( const std::string &file )
     }
     
 	stream.close();
+}
+
+void FieldFit::BlockParser::Clear()
+{
+    mBlocks.clear();
 }
