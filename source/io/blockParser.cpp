@@ -45,7 +45,7 @@ const Block * FieldFit::BlockParser::GetBlock( const std::string &block ) const
     // Now perform size test
     if ( blockArray.size() != 1 )
     {
-        throw ArgException( "BlockParser", "GetBlock", "A call to GetBlock suggests that only one block of requested type" + block +" should exist." );
+        throw ArgException( "BlockParser", "GetBlock", "A call to GetBlock suggests that only one block of requested type " + block +" should exist." );
     }
     
     return blockArray.data();

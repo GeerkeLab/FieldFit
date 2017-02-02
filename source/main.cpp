@@ -95,6 +95,9 @@ int main(int argc, char** argv)
         const Units units = ReadUnits( bp );
         
         ReadSystems( bp, units, config );
+        ReadGrids( bp, units, config );
+        ReadFields( bp, units, config );
+        ReadEfields( bp, units, config );
         
         //clean up after reading
         bp.Clear();

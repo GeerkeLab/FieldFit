@@ -17,12 +17,10 @@ namespace FieldFit
         Configuration();
         ~Configuration();
         
+        void InsertSystem( System *sys );
+        
         System *FindSystem( const std::string &name );
-    
-    protected:
-    
-    
-    
+        
     private:
         
         std::vector<System*> mSystems;

@@ -68,21 +68,47 @@ FieldFit::Units FieldFit::ReadUnits( const BlockParser &bp )
     return unitsObj;
 }
 
-
-
-void FieldFit::ReadGrids( const BlockParser &, const Units &units, Configuration &config )
+void FieldFit::ReadGrids( const BlockParser &bp, const Units &units, Configuration &config )
 {
+    const std::vector< Block > *blockArray = bp.GetBlockArray("GRID");
     
+    if ( !blockArray )
+    {
+        throw ArgException( "FieldFit", "ReadGrids", "block GRID was not present!" );
+    }
+    
+    for ( const Block &block : *blockArray )
+    { 
+        ReadGrid(block,units,config);
+    }
 }
 
-void FieldFit::ReadFields( const BlockParser &, const Units &units, Configuration &config )
+void FieldFit::ReadFields( const BlockParser &bp, const Units &units, Configuration &config )
 {
+    const std::vector< Block > *blockArray = bp.GetBlockArray("FIELD");
     
+    if ( !blockArray )
+    {
+        throw ArgException( "FieldFit", "ReadFields", "block FIELD was not present!" );
+    }
+    
+    for ( const Block &block : *blockArray )
+    { 
+        ReadField(block,units,config);
+    }
 }
 
-void FieldFit::ReadEfields( const BlockParser &, const Units &units, Configuration &config )
+void FieldFit::ReadEfields( const BlockParser &bp, const Units &units, Configuration &config )
 {
+    const std::vector< Block > *blockArray = bp.GetBlockArray("EFIELD");
     
+    if ( blockArray )
+    {
+        for ( const Block &block : *blockArray )
+        { 
+            ReadEfield(block, units, config);            
+        }
+    }
 }
 
 void FieldFit::ReadSystems( const BlockParser &bp, const Units &units, Configuration &config )
@@ -110,8 +136,7 @@ void FieldFit::ReadSystems( const BlockParser &bp, const Units &units, Configura
             throw ArgException( "FieldFit", "ReadSystems", "Duplicate system name " + newSys->GetName() );
         }
         
-        //configurations.insert( std::make_pair( newConfig.GetSystemName(), newConfig ) );
-        
+        config.InsertSystem(newSys);
     }      
 }
 
@@ -125,19 +150,179 @@ void FieldFit::ReadPermDipoleSets( const BlockParser &, const Units &units, Conf
     
 }
 
-void FieldFit::ReadGrid( const Block &, const Units &units, Configuration &config )
-{
+void FieldFit::ReadGrid( const Block &block, const Units &units, Configuration &config )
+{   
+    if ( block.Size() < 2 )
+    {
+        throw ArgException( "FieldFit", "ReadGrid", "block [GRID] was too small ( at least 1 argument1 expected ) !" );
+    }
+    
+    const std::string systemName = block.GetToken( 0 )->GetToken();
+    const U32 numCoords = block.GetToken( 1 )->GetValue< U32 >();
+    
+    System *sys = config.FindSystem( systemName );
+    
+    if ( !sys )
+    {
+        throw ArgException( "FieldFit", "ReadGrid", "System with name "+systemName+" not found!" );
+    }
+    
+    arma::vec x = arma::zeros( numCoords );
+    arma::vec y = arma::zeros( numCoords );
+    arma::vec z = arma::zeros( numCoords );
+    
+    //test for the correct size
+    if ( block.Size() != ( 2  + ( numCoords * 3 ) ) )
+    {
+        throw ArgException( "FieldFit", "ReadGrid", "block [GRID] did not have the right amount of arguments based on the size indicators !" );
+    }
+    
+    const F64 coordConv = units.GetCoordConv();
+    
+    U32 index = 2;
+    
+    for ( U32 i=0; i < numCoords; ++i,index+=3 )
+    {
+        x[i] = block.GetToken( index+0 )->GetValue< F64 >() * coordConv;
+        y[i] = block.GetToken( index+1 )->GetValue< F64 >() * coordConv;
+        z[i] = block.GetToken( index+2 )->GetValue< F64 >() * coordConv;
+    }
+    
+    Grid *newGrid = new Grid( x, y, z );
+    sys->InsertGrid(newGrid);
+}
+
+void FieldFit::ReadField( const Block &block, const Units &units, Configuration &config )
+{   
+    if ( block.Size() < 3 )
+    {
+        throw ArgException( "FieldFit", "ReadField", "block [FIELD] was too small ( at least 3 arguments expected )!" );
+    }
+    
+    const std::string &systemName = block.GetToken( 0 )->GetToken();
+    const U32 numSets   = block.GetToken( 1 )->GetValue< U32 >();
+    const U32 numPoints = block.GetToken( 2 )->GetValue< U32 >();
+    
+    System *sys = config.FindSystem( systemName );
+    
+    if ( !sys )
+    {
+        throw ArgException( "FieldFit", "ReadGrid", "System with name "+systemName+" not found!" );
+    }
+    
+    const Grid *grid = sys->GetGrid();
+    
+    if ( !grid )
+    {
+        throw ArgException( "FieldFit", "ReadGrid", "Grid for system with name "+systemName+" not found!" );
+    }
+    
+    if ( numPoints != grid->GetX().n_elem ||
+         numPoints != grid->GetY().n_elem || 
+         numPoints != grid->GetZ().n_elem  )
+    {
+        throw ArgException( "FieldFit", "ReadField", "configuration "+systemName+" was assigned a field matrix that does not match its grid" );
+    }
+    
+    arma::mat potentials = arma::zeros( numPoints, numSets );
+
+    //test for the correct size
+    if ( block.Size() != ( 3 + ( numPoints * numSets ) ) )
+    {
+        throw ArgException( "FieldFit", "ReadField", "block [FIELD] did not have the right amount of arguments based on the size indicators !" );    
+    }
+    
+    const F64 potConv = units.GetPotConv();
+    
+    U32 index = 3;
+    
+    for ( U32 s=0; s < numSets; ++s )
+    {
+        for ( U32 i=0; i < numPoints; ++i,index++ )
+        {
+            potentials.col(s)[i] = block.GetToken( index )->GetValue< F64 >() * potConv;
+        }  
+    }
+    
+    Field *newField = new Field(potentials);
     
 }
 
-void FieldFit::ReadField( const Block &, const Units &units, Configuration &config )
+void FieldFit::ReadEfield( const Block &block, const Units &units, Configuration &config )
 {
+    if ( block.Size() < 3 )
+    {
+        throw ArgException( "FieldFit", "ReadEfield", "block [EFIELD] was too small ( at least 2 argument expected ) !" );    
+    }
     
-}
+    const std::string &systemName = block.GetToken( 0 )->GetToken();
+    const U32 sites       = block.GetToken( 1 )->GetValue< U32 >();
+    const U32 setsPerSite = block.GetToken( 2 )->GetValue< U32 >();
+    
+    System *sys = config.FindSystem( systemName );
+    if ( !sys )
+    {
+        throw ArgException( "FieldFit", "ReadEfield", "System with name "+systemName+" not found!" );
+    }
+       
+    if ( block.Size() != ( 3 + ( sites + sites * setsPerSite * 3 ) ) )
+    {
+        throw ArgException( "FieldFit", "ReadEfield", "block [EFIELD] did not have the right amount of arguments based on the size indicator!" );
+    }
+    
+    const Field *field = sys->GetField();
+    
+    if ( !field )
+    {
+        throw ArgException( "FieldFit", "ReadEfield", "Field for system with name "+systemName+" not found!" );
+    }
+    
+    if ( setsPerSite != field->GetPotentials().n_cols )
+    {
+        throw ArgException( "FieldFit", "ReadEfield", "Number of efield inputs per sites does not match the number of potential sets" );
+    }
 
-void FieldFit::ReadEfield( const Block &, const Units &units, Configuration &config )
-{
-    
+    const F64 efieldConv = units.GetEfieldConv();
+
+    U32 index = 3;
+    for ( U32 i=0; i < sites; ++i )
+    {
+        const std::string name = block.GetToken( index+0 )->GetToken();
+        
+        index++;
+        
+        Site *site = sys->FindSite( name );
+        
+        // skip
+        if ( !site )
+        {
+            index+=3*setsPerSite;
+            continue;
+        }
+        
+        arma::vec ex;
+        arma::vec ey;
+        arma::vec ez;
+        ex.resize( setsPerSite );
+        ey.resize( setsPerSite );
+        ez.resize( setsPerSite );
+        
+        // read ef_xyz
+        for ( U32 s=0; s < setsPerSite; ++s )
+        {
+            F64 efx = block.GetToken( index+0 )->GetValue< F64 >() * efieldConv;
+            F64 efy = block.GetToken( index+1 )->GetValue< F64 >() * efieldConv;
+            F64 efz = block.GetToken( index+2 )->GetValue< F64 >() * efieldConv;
+            
+            ex[s] = efx;
+            ey[s] = efy;
+            ez[s] = efz;
+            
+            index+=3;
+        }
+        
+        site->AddEfield( ex, ey, ez );
+    }
 }
 
 FieldFit::System* FieldFit::ReadSystem( const Block &block, const Units &units  )
@@ -178,57 +363,59 @@ FieldFit::System* FieldFit::ReadSystem( const Block &block, const Units &units  
         const F64 coord_y = block.GetToken( index+4 )->GetValue< F64 >() * coordConv;
         const F64 coord_z = block.GetToken( index+5 )->GetValue< F64 >() * coordConv;
         
-        Site site( atomName, coulFlag, coord_x, coord_y, coord_z );
+        Site *site = new Site( atomName, coulFlag, coord_x, coord_y, coord_z );
         
         if ( fitFlags == "charge" )
         {   
-            site.AddFitType( FitType::charge );
+            site->AddFitType( FitType::charge );
         }
         else if ( fitFlags == "dipole_x" )
         {
-            site.AddFitType( FitType::dipoleX );
+            site->AddFitType( FitType::dipoleX );
         }
         else if ( fitFlags == "dipole_xy" )
         {
-            site.AddFitType( FitType::dipoleX );
-            site.AddFitType( FitType::dipoleY );
+            site->AddFitType( FitType::dipoleX );
+            site->AddFitType( FitType::dipoleY );
         }
         else if ( fitFlags == "dipole_xz" )
         {
-            site.AddFitType( FitType::dipoleX );
-            site.AddFitType( FitType::dipoleZ );
+            site->AddFitType( FitType::dipoleX );
+            site->AddFitType( FitType::dipoleZ );
         }
         else if ( fitFlags == "dipole_y" )
         {
-            site.AddFitType( FitType::dipoleY );
+            site->AddFitType( FitType::dipoleY );
         }
         else if ( fitFlags == "dipole_yz" )
         {
-            site.AddFitType( FitType::dipoleY );
-            site.AddFitType( FitType::dipoleZ );
+            site->AddFitType( FitType::dipoleY );
+            site->AddFitType( FitType::dipoleZ );
         }
         else if ( fitFlags == "dipole_z" )
         {
-            site.AddFitType( FitType::dipoleZ );
+            site->AddFitType( FitType::dipoleZ );
         }
         else if ( fitFlags == "dipole_xyz" || fitFlags == "alpha" )
         {
-            site.AddFitType( FitType::dipoleX );
-            site.AddFitType( FitType::dipoleY );
-            site.AddFitType( FitType::dipoleZ );
+            site->AddFitType( FitType::dipoleX );
+            site->AddFitType( FitType::dipoleY );
+            site->AddFitType( FitType::dipoleZ );
         }
         else if ( fitFlags == "qpol" )
         {
-            site.AddFitType( FitType::qd20 );
-            site.AddFitType( FitType::qd21c );
-            site.AddFitType( FitType::qd21s );
-            site.AddFitType( FitType::qd22c );
-            site.AddFitType( FitType::qd22s );
+            site->AddFitType( FitType::qd20 );
+            site->AddFitType( FitType::qd21c );
+            site->AddFitType( FitType::qd21s );
+            site->AddFitType( FitType::qd22c );
+            site->AddFitType( FitType::qd22s );
         }
         else
         {
             throw ArgException( "FieldFit", "ReadSystem", "Unknown fitflags "+fitFlags );
         }
+        
+        newSys->InsertSite(site);
         
         index += 6;
     }
@@ -236,9 +423,43 @@ FieldFit::System* FieldFit::ReadSystem( const Block &block, const Units &units  
     return newSys;
 }
 
-void FieldFit::ReadPermChargeSet( const Block &, const Units &units, Configuration &config )
+void FieldFit::ReadPermChargeSet( const Block &block, const Units &units, Configuration &config )
 {
+    /*
+    if ( block.Size() < 2 )
+    {
+        Error::Warn( std::cout, "block [PERMCHARGES] was too small ( at least 2 argument expected ) !" );
+        return Error::Status::FAILED_IO;
+    }
+
+    mSystemName = block.GetToken( 0 )->GetToken();
+    U32 numSites   = block.GetToken( 1 )->GetValue< U32 >();
+      
+    if ( block.Size() != ( 2 + ( numSites * 4 ) ) )
+    {
+        Error::Warn( std::cout, "block [PERMCHARGES] did not have the right amount of arguments based on the size indicator!" );
+        return Error::Status::FAILED_IO;
+    }
+
+    const F64 coordConv  = units.GetCoordConv();
+    const F64 chargeConv = units.GetChargeConv();
     
+    U32 index = 2;
+
+    for ( U32 i=0; i < numSites; ++i )
+    {
+        PermSite permSite;
+        
+        permSite.x   	 = block.GetToken( index+0 )->GetValue< F64 >() * coordConv;
+        permSite.y       = block.GetToken( index+1 )->GetValue< F64 >() * coordConv;
+        permSite.z       = block.GetToken( index+2 )->GetValue< F64 >() * coordConv;
+        permSite.pval    = block.GetToken( index+3 )->GetValue< F64 >() * chargeConv;
+        permSite.permType = ValueType::charge;
+        mPermSites.push_back( permSite );
+
+        index += 4;
+    }
+    */
 }
 
 void FieldFit::ReadPermDipoleSet( const Block &, const Units &units, Configuration &config )
