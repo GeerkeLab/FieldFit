@@ -2,6 +2,8 @@
 #ifndef __FIELD_FIT_EXCEPTION_H__
 #define __FIELD_FIT_EXCEPTION_H__
 
+#include "io/console.h"
+
 #include <exception>
 #include <string>
 
@@ -18,6 +20,8 @@ namespace FieldFit
         virtual ~ArgException() throw();
         
         const char* what() const throw();
+    
+        Message GenMessage() const throw();
     
     private:
         

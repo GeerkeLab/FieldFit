@@ -245,7 +245,7 @@ void FieldFit::ReadField( const Block &block, const Units &units, Configuration 
     }
     
     Field *newField = new Field(potentials);
-    
+    sys->InsertField( newField );
 }
 
 void FieldFit::ReadEfield( const Block &block, const Units &units, Configuration &config )
@@ -363,58 +363,9 @@ FieldFit::System* FieldFit::ReadSystem( const Block &block, const Units &units  
         const F64 coord_y = block.GetToken( index+4 )->GetValue< F64 >() * coordConv;
         const F64 coord_z = block.GetToken( index+5 )->GetValue< F64 >() * coordConv;
         
-        Site *site = new Site( atomName, coulFlag, coord_x, coord_y, coord_z );
+        U32 fitTypes = StringTypeToFitFlags( fitFlags );
         
-        if ( fitFlags == "charge" )
-        {   
-            site->AddFitType( FitType::charge );
-        }
-        else if ( fitFlags == "dipole_x" )
-        {
-            site->AddFitType( FitType::dipoleX );
-        }
-        else if ( fitFlags == "dipole_xy" )
-        {
-            site->AddFitType( FitType::dipoleX );
-            site->AddFitType( FitType::dipoleY );
-        }
-        else if ( fitFlags == "dipole_xz" )
-        {
-            site->AddFitType( FitType::dipoleX );
-            site->AddFitType( FitType::dipoleZ );
-        }
-        else if ( fitFlags == "dipole_y" )
-        {
-            site->AddFitType( FitType::dipoleY );
-        }
-        else if ( fitFlags == "dipole_yz" )
-        {
-            site->AddFitType( FitType::dipoleY );
-            site->AddFitType( FitType::dipoleZ );
-        }
-        else if ( fitFlags == "dipole_z" )
-        {
-            site->AddFitType( FitType::dipoleZ );
-        }
-        else if ( fitFlags == "dipole_xyz" || fitFlags == "alpha" )
-        {
-            site->AddFitType( FitType::dipoleX );
-            site->AddFitType( FitType::dipoleY );
-            site->AddFitType( FitType::dipoleZ );
-        }
-        else if ( fitFlags == "qpol" )
-        {
-            site->AddFitType( FitType::qd20 );
-            site->AddFitType( FitType::qd21c );
-            site->AddFitType( FitType::qd21s );
-            site->AddFitType( FitType::qd22c );
-            site->AddFitType( FitType::qd22s );
-        }
-        else
-        {
-            throw ArgException( "FieldFit", "ReadSystem", "Unknown fitflags "+fitFlags );
-        }
-        
+        Site *site = new Site( fitTypes, atomName, coulFlag, coord_x, coord_y, coord_z );
         newSys->InsertSite(site);
         
         index += 6;

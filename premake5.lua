@@ -25,7 +25,7 @@
 
 workspace "FieldFit"
 
-    local config = { "Debug", "Release", "OptimisedDebug" }
+    local config = { "Release", "OptimisedDebug", "Debug" }
     configurations( config )
 
 --  only support 64 bit

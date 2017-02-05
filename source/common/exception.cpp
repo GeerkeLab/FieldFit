@@ -23,3 +23,8 @@ const char* ArgException::what() const throw()
     std::string val = "[ArgException] " + mNamespace + "::" + mLocation + " -> " + mDescription;
     return val.c_str();
 }
+
+Message ArgException::GenMessage() const throw()
+{
+    return Message( mNamespace, mLocation, mDescription );
+}

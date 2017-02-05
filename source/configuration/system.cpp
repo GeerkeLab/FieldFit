@@ -2,29 +2,30 @@
 
 #include "common/exception.h"
 
+#include "fitting/delcomp.h"
+
 #include <iostream>
 
-FieldFit::Site::Site( const std::string &name,
+FieldFit::Site::Site( const U32 types,
+                      const std::string &name,
                       const std::string &coultype,
                       const F64 coordX,
                       const F64 coordY,
                       const F64 coordZ ) :
      mName( name ), mCoulType( coultype ),
-     mCoordX( coordX ), mCoordY( coordY ), mCoordZ( coordZ )
+     mCoordX( coordX ), mCoordY( coordY ), mCoordZ( coordZ ),
+     mTypes( types )
 {
-    for ( S32 i=0; i < FitType::size; ++i )
-    {
-        mTypes[i] = false;
-    }
-}
-void FieldFit::Site::AddFitType( FitType type )
-{
-    mTypes[type] = true;
 }
 
 bool FieldFit::Site::TestFitType( FitType type ) const
 {
-    return mTypes[type];
+    return IsSet( mTypes, type );
+}
+
+bool FieldFit::Site::TestSpecialType( SpecialFlag type ) const
+{
+    return IsSpecialSet( mTypes, type );
 }
 
 void FieldFit::Site::AddEfield( const arma::vec &ex,
@@ -66,6 +67,43 @@ F64 FieldFit::Site::GetCoordY() const
 F64 FieldFit::Site::GetCoordZ() const
 {
     return mCoordZ;
+}
+
+const arma::vec &FieldFit::Site::GetEfieldX() const
+{
+    return mEfield_x;
+}
+
+const arma::vec &FieldFit::Site::GetEfieldY() const
+{
+    return mEfield_y;
+}
+
+const arma::vec &FieldFit::Site::GetEfieldZ() const
+{
+    return mEfield_z;
+}
+
+U32 FieldFit::Site::GetFlags() const
+{
+    return mTypes;
+}
+
+size_t FieldFit::Site::NumColumns() const
+{
+   size_t collOffset = 0;
+    
+   for ( S32 t=0; t < FitType::size; ++t )
+   {
+        FitType fitType = (FitType) t;
+        
+        if ( TestFitType( fitType )  )
+        {
+            collOffset++;
+        }
+    } 
+    
+    return collOffset;
 }
 
 FieldFit::Grid::Grid( const arma::vec &x,
@@ -120,6 +158,11 @@ FieldFit::System::~System()
     {
         delete mGrid;
     }
+    
+    if ( mFields )
+    {
+        delete mFields;
+    }
 }
 
 size_t FieldFit::System::NumberOfColumns() const
@@ -130,7 +173,7 @@ size_t FieldFit::System::NumberOfColumns() const
     {
         for ( S32 t=0; t < FitType::size; ++t )
         {
-            if ( site->TestFitType(t) )
+            if ( site->TestFitType((FitType)t) )
             {
                 n_col++;
             }
@@ -142,52 +185,68 @@ size_t FieldFit::System::NumberOfColumns() const
 
 void FieldFit::System::OnUpdate()
 {
-    if (!mFields || !mGrid)
+    if (!mFields)
     {
-        throw ArgException( "FieldFit", "System::OnUpdate", "Fitting system "+mName+" requires both a grid and field" );
+        throw ArgException( "FieldFit", "System::OnUpdate", "Fitting system "+mName+" requires a field" );
+    }
+    
+    if ( !mGrid)
+    {
+        throw ArgException( "FieldFit", "System::OnUpdate", "Fitting system "+mName+" requires a grid" );
     }
     
     const size_t n_col = NumberOfColumns();
-    const size_t n_sets = mFields->GetPotentials().n_rows;
+    const size_t n_sets = mFields->GetPotentials().n_cols;
     
     // find out the size we need to rescale
-    coefmat = arma::zeros( n_col, n_col );
-    potential = arma::zeros( n_col, n_sets );
+    mCoefficientMatrix = arma::zeros( n_col, n_col );
+    mPotentialMatrix = arma::zeros( n_col, n_sets );
+    
+    //
+    // Todo, generate effective potentials, by subtracting the permanent field
+    //
     
     U32 row = 0;
-    for ( const Site* site : mSites )
+    for ( const Site* site_i : mSites )
     {
-        arma::vec delX_i = mGrid->GetX() - site->GetCoordX();
-        arma::vec delY_i = mGrid->GetY() - site->GetCoordY();
-        arma::vec delZ_i = mGrid->GetZ() - site->GetCoordZ();
-    }
-    
-    /*
-    for ( auto it = SitesBegin(), itend = SitesEnd(); it != itend; ++it, ++row )
-    {
-        arma::vec delX_i = mGrid.x - it->second.x;
-        arma::vec delY_i = mGrid.y - it->second.y;
-        arma::vec delZ_i = mGrid.z - it->second.z;
-           
-        arma::vec delcomp_i = DelComp( it->second.fitType, delX_i, delY_i, delZ_i );
-        
-        U32 col=0;
-        for ( auto jt = SitesBegin(), jtend = SitesEnd(); jt != jtend; ++jt, ++col )
+        //test if we have to include this type
+        for ( S32 t_i=0; t_i < FitType::size; ++t_i )
         {
+            FitType fitType_i = (FitType) t_i;
             
-            arma::vec delX_j = mGrid.x - jt->second.x;
-            arma::vec delY_j = mGrid.y - jt->second.y;
-            arma::vec delZ_j = mGrid.z - jt->second.z;
-        
-            coefmat.col( col )[ row ] = arma::sum( delcomp_i % DelComp( jt->second.fitType, delX_j, delY_j, delZ_j ) );
-        } 
-       
-        for ( size_t s=0; s < NumPotentialSets(); ++s )
-        {
-            potential.row( row )[s] = arma::sum( delcomp_i % mGrid.potentials.col( s ) );
+            if ( site_i->TestFitType((FitType)t_i) )
+            {
+                arma::vec delcomp_i = DelComp( site_i->GetCoordX(), site_i->GetCoordY(), site_i->GetCoordZ(),
+                           	                   mGrid->GetX(), mGrid->GetY(),  mGrid->GetZ(), fitType_i );
+                
+                U32 col = 0;
+                for ( const Site* site_j : mSites )
+                {
+                    for ( S32 t_j=0; t_j < FitType::size; ++t_j )
+                    {
+                        FitType fitType_j = (FitType) t_j;
+                    	
+                        if ( site_j->TestFitType((FitType)t_j) )
+                        {
+                            arma::vec delcomp_j = DelComp( site_j->GetCoordX(), site_j->GetCoordY(), site_j->GetCoordZ(),
+                           	                    	       mGrid->GetX(), mGrid->GetY(),  mGrid->GetZ(), fitType_j );
+                                                              
+                            mCoefficientMatrix.col( col )[ row ] = arma::sum( delcomp_i % delcomp_j );
+                    	   
+                            col++;
+                        }
+                    }
+                }
+                
+                for ( size_t s=0; s < n_sets; ++s )
+                {
+                    mPotentialMatrix.row( row )[s] = arma::sum( delcomp_i % mFields->GetPotentials().col( s ) );
+                }
+                
+                row++;
+            }
         }
     }
-    */
 }
 
 FieldFit::Site * FieldFit::System::FindSite( const std::string &name )
@@ -247,18 +306,17 @@ void FieldFit::System::InsertField( Field *field )
         throw ArgException( "FieldFit", "System::InsertField", "A field already exists for system "+mName );
     }
     
-    if ( field->GetPotentials().n_cols != 0 ||
-         field->GetPotentials().n_rows != 0 )
-    {
-        throw ArgException( "FieldFit", "System::InsertGrid", "configuration "+mName+" was already assigned a potential matrix" );
-    }
-    
     mFields = field;
 }
 
 const std::string &FieldFit::System::GetName() const
 {
     return mName;
+}
+
+const std::vector< FieldFit::Site* > &FieldFit::System::GetSites() const
+{
+    return mSites;
 }
 
 FieldFit::Grid *FieldFit::System::GetGrid() const
@@ -270,3 +328,25 @@ FieldFit::Field *FieldFit::System::GetField() const
 {
     return mFields;
 }
+
+const arma::mat &FieldFit::System::GetCoefficientMatrix() const
+{
+    return mCoefficientMatrix;
+}
+
+const arma::mat &FieldFit::System::PotentialMatrix() const
+{
+    return mPotentialMatrix;
+}
+
+size_t FieldFit::System::NumColumns() const
+{
+    size_t cols = 0;
+    for( const Site *site : mSites )
+    {
+        cols += site->NumColumns();
+    }
+    
+    return cols;
+}
+

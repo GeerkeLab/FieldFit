@@ -2,11 +2,17 @@
 #include "common/exception.h"
 
 #include "io/block.h"
+#include "io/console.h"
 #include "io/inSystem.h"
 #include "io/blockParser.h"
+#include "io/inConstraints.h"
 
+#include "fitting/fitter.h"
+
+#include "configuration/constraints.h"
 #include "configuration/configuration.h"
 
+#include <chrono>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -15,6 +21,7 @@
 #include <tclap/CmdLine.h>
 
 using namespace FieldFit;
+using namespace std::chrono;
 
 void ReadFilesFromList( const std::string &file, std::vector< std::string > &appList )
 {
@@ -52,6 +59,9 @@ int main(int argc, char** argv)
     bool json = false;
     bool verbose = false;
     
+    Console console;
+    auto t0 = high_resolution_clock::now();
+    
 	try 
     {  
         const std::string blockDesc = "Block Description: ";
@@ -76,7 +86,7 @@ int main(int argc, char** argv)
 	} 
     catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ 
-        std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; 
+        console.Error( Message( "::", "TCLAP::main", e.error() ) );
     }
     
     try 
@@ -88,6 +98,7 @@ int main(int argc, char** argv)
         }
         
         Configuration config;
+        Constraints   constr;
         
         // Initiate reading of the field files
         BlockParser bp(fieldFiles);
@@ -99,11 +110,32 @@ int main(int argc, char** argv)
         ReadFields( bp, units, config );
         ReadEfields( bp, units, config );
         
+        // parse constraints
+        ReadSumConstraintSet( bp, units, constr );
+        ReadSymConstraintSet( bp, units, constr );
+        
         //clean up after reading
         bp.Clear();
+        
+        // start data generation
+        for ( FieldFit::System *sys : config.GetSystems() )
+        {
+            if (sys)
+            {
+                sys->OnUpdate();
+            }   
+        }
+        
+        Fitter fitter; 
+        fitter.Fit( console, config, constr, verbose );
     }
     catch (FieldFit::ArgException &e)  // catch any exceptions
 	{ 
-        std::cerr << "error: " << e.what() << std::endl; 
+        console.Error( e.GenMessage() );
     }
+    
+    auto t1 = high_resolution_clock::now();
+    std::cout << "Runtime (milliseconds): " << duration_cast<milliseconds>(t1 - t0).count() << std::endl;
+    
+    console.WritePlain(std::cout);
 }

@@ -46,3 +46,13 @@ FieldFit::System *FieldFit::Configuration::FindSystem( const std::string &name )
     
     return itf->second;
 }
+
+std::vector<FieldFit::System*> & FieldFit::Configuration::GetSystems()
+{
+    return mSystems;
+}
+
+const std::vector<FieldFit::System*> &  FieldFit::Configuration::GetSystems() const
+{
+    return mSystems;
+}

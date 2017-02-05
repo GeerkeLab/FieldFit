@@ -4,6 +4,8 @@
 
 #include "common/types.h"
 
+#include "configuration/fitType.h"
+
 #include <string>
 #include <vector>
 #include <armadillo>
@@ -11,31 +13,17 @@
 
 namespace FieldFit
 {
-    enum FitType
-    {
-        charge  = 0,
-        dipoleX = 1,
-        dipoleY = 2,
-        dipoleZ = 3,
-        qd20    = 4,
-        qd21c   = 5,
-        qd21s   = 6,
-        qd22c   = 7,
-        qd22s   = 8,
-        size    = 9
-    };
-    
     class Site
     {
     public:
     
-        Site( const std::string &name,
+        Site( const U32 types,
+              const std::string &name,
               const std::string &coultype,
               const F64 coordX,
               const F64 coordY,
               const F64 coordZ );
         
-        void AddFitType( FitType type );	
         void AddEfield( const arma::vec &ex,
                         const arma::vec &ey,
                         const arma::vec &ez );
@@ -47,7 +35,16 @@ namespace FieldFit
         F64 GetCoordY() const;
         F64 GetCoordZ() const;
         
+        const arma::vec &GetEfieldX() const;
+        const arma::vec &GetEfieldY() const;
+        const arma::vec &GetEfieldZ() const;
+        
         bool TestFitType( FitType type ) const;
+        bool TestSpecialType( SpecialFlag type ) const;
+        
+        U32 GetFlags() const;
+        
+        size_t NumColumns() const;
         
     private:
         
@@ -62,7 +59,7 @@ namespace FieldFit
         std::string mName;
         std::string mCoulType;
         
-        bool mTypes[FitType::size];
+        U32 mTypes;
     };
     
     class Grid
@@ -113,9 +110,15 @@ namespace FieldFit
         void InsertField( Field *field );
         
         const std::string &GetName() const; 
-    
+        const std::vector< Site* > &GetSites() const;
+        
         Grid *GetGrid() const;
         Field *GetField() const;
+        
+        const arma::mat &GetCoefficientMatrix() const;
+        const arma::mat &PotentialMatrix() const;
+        
+        size_t NumColumns() const;
         
     private:
     

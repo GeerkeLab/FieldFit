@@ -21,6 +21,9 @@ namespace FieldFit
         
         System *FindSystem( const std::string &name );
         
+        std::vector<System*> & GetSystems();
+        const std::vector<System*> & GetSystems() const;
+        
     private:
         
         std::vector<System*> mSystems;
