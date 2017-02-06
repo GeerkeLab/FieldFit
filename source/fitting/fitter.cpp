@@ -7,6 +7,8 @@
 #include "configuration/configuration.h"
 
 #include <iostream>
+#include <map>
+#include <math.h>
 
 FieldFit::Fitter::LocalSystem::LocalSystem() :
     sourceSystem( nullptr )
@@ -20,7 +22,7 @@ FieldFit::Fitter::InternalConstraint::InternalConstraint() :
     
 }
 
-void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const Constraints &constraints, bool verbose )
+void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const Constraints &constraints, bool debug )
 {
     AddConfiguration( console, config );
     AddConstraints( console, constraints );
@@ -29,8 +31,12 @@ void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const
     // Add contraints to the system
     //
     
-    size_t row =  x_prime_x.n_rows;
+    if ( mInternalConstraints.size() > x_prime_x.n_cols )
+    {
+        throw ArgException( "FieldFit", "Fitter::Fit", "The configuration is overconstrained" );
+    }
     
+    size_t row =  x_prime_x.n_rows;
     x_prime_x.resize( x_prime_x.n_rows + mInternalConstraints.size(), 
                       x_prime_x.n_cols + mInternalConstraints.size() );
     x_prime_y.resize( x_prime_y.n_rows + mInternalConstraints.size() );
@@ -52,7 +58,7 @@ void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const
     // Generate OLS
     //
     
-    if ( verbose )
+    if ( debug )
     {
         std::cout << "[A]" << std::endl;
         std::cout << x_prime_x;
@@ -65,21 +71,65 @@ void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const
     
     mSolution = solve( x_prime_x, x_prime_y );
     
-    SolutionToLocalSystem();
+    WriteSolution(console);
 }
 
-void FieldFit::Fitter::SolutionToLocalSystem()
+void FieldFit::Fitter::WriteSolution(Console &console)
 {
+    SystemResult systemResult("", 0);
+    
+    // Transfer to local sytem
     size_t row = 0;
-    for ( LocalSystem &localSys : mLocalSystems )
+    for ( const LocalSystem &localSys : mLocalSystems )
     { 
-        size_t systemCols = localSys.sourceSystem->NumColumns();
+        const System *sys = localSys.sourceSystem;
         
-        localSys.result = mSolution.rows( row, row + systemCols - 1 );
+        if ( systemResult.name != sys->GetName() )
+        {
+            if ( systemResult.fitResults.size() > 0 )
+            {
+                console.AddSystemResult( systemResult );
+            }
+            
+            systemResult = SystemResult( sys->GetName(), sys->GetSites().size() );
+        }
         
-        std::cout << localSys.result  << std::endl;
+        const size_t systemCols = sys->NumColumns();
+        arma::vec lvec = mSolution.rows( row, row + systemCols - 1 );
+        
+        F64 chi2 = sys->ComputeChi2( lvec, localSys.collectionIndex );
+        systemResult.chi2.push_back( chi2 );
+        systemResult.rmsd.push_back( std::sqrt( chi2 / sys->GetGrid()->Size() ) );
+        
+        size_t col = 0;
+        size_t siteIndex = 0;
+        for ( const Site *site : sys->GetSites() )
+        {
+            FitResult &fitResult = systemResult.fitResults[siteIndex];
+            fitResult.name = site->GetName();
+            
+            for ( S32 t=0; t < FitType::size; ++t )
+            {
+                FitType fitType = (FitType) t;
+           
+                if ( site->TestFitType( fitType ) )
+                {
+                    fitResult.values[fitType].push_back( lvec[col] );
+                
+                    col++;
+                }
+            }
+            
+            siteIndex++;
+        }
         
         row += systemCols;
+    }
+    
+    // Flush
+    if ( systemResult.fitResults.size() > 0 )
+    {
+        console.AddSystemResult( systemResult );
     }
 }
 
@@ -90,21 +140,21 @@ void FieldFit::Fitter::AddConfiguration( Console &console, const Configuration &
     
     for ( const System *sys : config.GetSystems() )
     {
-        const arma::mat &coefMat = sys->GetCoefficientMatrix();
-        const arma::mat &potMat  = sys->PotentialMatrix();
+        const arma::mat &localXPrimeX = sys->GetLocalXPrimeX();
+        const arma::mat &localXPrimeY  = sys->PotentialMatrix();
         
         //
         // Insert collection selector here!
         //
         // PLACEHOLDER
-        mTargetCollections.resize( potMat.n_cols );
+        mTargetCollections.resize( localXPrimeY.n_cols );
         std::iota(mTargetCollections.begin(), mTargetCollections.end(), 0);
         // END PLACEHOLDER
         
         for ( U32 i : mTargetCollections )
         {
             // this is for later if the selection is user input driven!
-            if ( i >= potMat.n_cols )
+            if ( i >= localXPrimeY.n_cols )
             {
                 throw ArgException( "FieldFit", "Fitter::AddConfiguration", "Collection selection out of range for system"+sys->GetName() );
             }
@@ -117,24 +167,24 @@ void FieldFit::Fitter::AddConfiguration( Console &console, const Configuration &
             // Insert the coefficient matrices
             //
             
-            x_prime_x.resize( x_prime_x.n_rows + coefMat.n_rows,
-                              x_prime_x.n_cols + coefMat.n_cols );
+            x_prime_x.resize( x_prime_x.n_rows + localXPrimeX.n_rows,
+                              x_prime_x.n_cols + localXPrimeX.n_cols );
             
-            x_prime_y.resize( x_prime_y.n_rows + potMat.n_rows );
+            x_prime_y.resize( x_prime_y.n_rows + localXPrimeY.n_rows );
             
             localSys.first_row = rowOrigin;
             localSys.first_col = colOrigin;
-            localSys.last_row  = rowOrigin + coefMat.n_rows - 1;
-            localSys.last_col  = colOrigin + coefMat.n_cols - 1;
+            localSys.last_row  = rowOrigin + localXPrimeX.n_rows - 1;
+            localSys.last_col  = colOrigin + localXPrimeX.n_cols - 1;
              
             x_prime_x.submat( localSys.first_row, localSys.first_col, 
-                              localSys.last_row, localSys.last_col ) = coefMat;
-            x_prime_y.rows( localSys.first_row, localSys.last_row ) = potMat.col( i );
+                              localSys.last_row, localSys.last_col ) = localXPrimeX;
+            x_prime_y.rows( localSys.first_row, localSys.last_row ) = localXPrimeY.col( i );
             
             mLocalSystems.push_back(localSys);
             
-            rowOrigin += coefMat.n_rows;
-            colOrigin += coefMat.n_cols;
+            rowOrigin += localXPrimeX.n_rows;
+            colOrigin += localXPrimeX.n_cols;
         }
     }
 }
@@ -288,9 +338,12 @@ void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeCon
         PerSiteConstraintList( console, localSys, proto,  perSiteList );  
     }
     
-    for ( size_t i=0,iend=perSiteList.size(); i < iend; ++i )
+    //for ( size_t i=0,iend=perSiteList.size(); i < iend; ++i )
+    for ( size_t i=0,iend=perSiteList.size()-1; i < iend; ++i )
     {
-        for ( size_t j=i+1,jend=perSiteList.size(); j < jend; ++j )
+        size_t j = i + 1;
+        
+        //for ( size_t j=i+1,jend=perSiteList.size(); j < jend; ++j )
         {
             // copy 
             InternalConstraint ic_i = perSiteList[i];

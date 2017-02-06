@@ -57,6 +57,8 @@ int main(int argc, char** argv)
     std::vector< std::string > fieldFiles;
     
     bool json = false;
+    bool plain = false;
+    bool debug = false;
     bool verbose = false;
     
     Console console;
@@ -68,8 +70,8 @@ int main(int argc, char** argv)
 	    TCLAP::CmdLine cmd( blockDesc, ' ', "0.9" );
 	        
 	    TCLAP::SwitchArg verboseSwitch("v","verbose","Print verbose output", cmd, false);
-        TCLAP::SwitchArg jsonSwitch("j","json","Format output as json", cmd, false);
-       
+        //TCLAP::SwitchArg plainSwitch("p","plain","Format output as plain", cmd, false);
+        TCLAP::SwitchArg debugSwitch("d","debug","Debug print internal matrices", cmd, false); 
         TCLAP::MultiArg<std::string> multiFileArg("f", "files", "File containing field-fit file names", false,"string" );
         TCLAP::UnlabeledMultiArg<std::string> multi( "fieldFiles", "Generic input for field-files containing blocks", false,"string" );
        
@@ -81,8 +83,9 @@ int main(int argc, char** argv)
         multiFiles = multiFileArg.getValue();
         fieldFiles = multi.getValue();
        
-        json = jsonSwitch.getValue();
+        //plain = plainSwitch.getValue();
         verbose = verboseSwitch.getValue();
+        debug = debugSwitch.getValue();
 	} 
     catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ 
@@ -122,12 +125,12 @@ int main(int argc, char** argv)
         {
             if (sys)
             {
-                sys->OnUpdate();
+                sys->OnUpdate2();
             }   
         }
         
         Fitter fitter; 
-        fitter.Fit( console, config, constr, verbose );
+        fitter.Fit( console, config, constr, debug );
     }
     catch (FieldFit::ArgException &e)  // catch any exceptions
 	{ 
@@ -135,7 +138,14 @@ int main(int argc, char** argv)
     }
     
     auto t1 = high_resolution_clock::now();
-    std::cout << "Runtime (milliseconds): " << duration_cast<milliseconds>(t1 - t0).count() << std::endl;
+    console.Warn( Message( "", "main", "Runtime (milliseconds): " + Util::ToString( (size_t)duration_cast<milliseconds>(t1 - t0).count() ) ) );
     
-    console.WritePlain(std::cout);
+    if ( plain )
+    {
+        console.WritePlain(std::cout,verbose);
+    }
+    else 
+    {
+        console.WriteJson(std::cout,verbose);
+    }
 }

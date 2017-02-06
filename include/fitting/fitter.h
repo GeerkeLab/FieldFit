@@ -35,8 +35,6 @@ namespace FieldFit
             size_t last_col;
             
             U32 collectionIndex;
-            
-            arma::vec result;
         };
         
         struct InternalConstraint
@@ -62,7 +60,7 @@ namespace FieldFit
         void AddConfiguration( Console &console, const Configuration &config );
         void AddConstraints( Console &console, const Constraints &constr );
         
-        void SolutionToLocalSystem();
+        void WriteSolution( Console &console );
         
         arma::mat x_prime_x;
         arma::mat x_prime_y;

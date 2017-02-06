@@ -128,6 +128,11 @@ const arma::vec &FieldFit::Grid::GetZ() const
     return mGridZ;
 }
 
+size_t FieldFit::Grid::Size()
+{
+    return mGridX.n_rows;
+}
+
 FieldFit::Field::Field( const arma::mat &mat ) :
     mPotentials( mat )
 {
@@ -199,8 +204,8 @@ void FieldFit::System::OnUpdate()
     const size_t n_sets = mFields->GetPotentials().n_cols;
     
     // find out the size we need to rescale
-    mCoefficientMatrix = arma::zeros( n_col, n_col );
-    mPotentialMatrix = arma::zeros( n_col, n_sets );
+    mX_prime_x = arma::zeros( n_col, n_col );
+    mX_prime_y = arma::zeros( n_col, n_sets );
     
     //
     // Todo, generate effective potentials, by subtracting the permanent field
@@ -231,7 +236,7 @@ void FieldFit::System::OnUpdate()
                             arma::vec delcomp_j = DelComp( site_j->GetCoordX(), site_j->GetCoordY(), site_j->GetCoordZ(),
                            	                    	       mGrid->GetX(), mGrid->GetY(),  mGrid->GetZ(), fitType_j );
                                                               
-                            mCoefficientMatrix.col( col )[ row ] = arma::sum( delcomp_i % delcomp_j );
+                            mX_prime_x.col( col )[ row ] = arma::sum( delcomp_i % delcomp_j );
                     	   
                             col++;
                         }
@@ -240,13 +245,62 @@ void FieldFit::System::OnUpdate()
                 
                 for ( size_t s=0; s < n_sets; ++s )
                 {
-                    mPotentialMatrix.row( row )[s] = arma::sum( delcomp_i % mFields->GetPotentials().col( s ) );
+                    mX_prime_y.row( row )[s] = arma::sum( delcomp_i % mFields->GetPotentials().col( s ) );
                 }
                 
                 row++;
             }
         }
     }
+}
+
+void FieldFit::System::OnUpdate2()
+{
+    if (!mFields)
+    {
+        throw ArgException( "FieldFit", "System::OnUpdate", "Fitting system "+mName+" requires a field" );
+    }
+    
+    if ( !mGrid)
+    {
+        throw ArgException( "FieldFit", "System::OnUpdate", "Fitting system "+mName+" requires a grid" );
+    }
+    
+    const size_t n_col = NumberOfColumns();
+    const size_t n_sets = mFields->GetPotentials().n_cols;
+    const size_t n_points = mFields->GetPotentials().n_rows;
+    
+    // find out the size we need to rescale
+    mX_prime_x = arma::zeros( n_col, n_col );
+    mX_prime_y = arma::zeros( n_col, n_sets );
+    mCoefficients = arma::zeros( n_points, n_col );
+    
+    //
+    // Todo, generate effective potentials, by subtracting the permanent field
+    //
+    
+    U32 col = 0;
+    for ( const Site* site_i : mSites )
+    {
+        //test if we have to include this type
+        for ( S32 t_i=0; t_i < FitType::size; ++t_i )
+        {
+            FitType fitType_i = (FitType) t_i;
+            
+            if ( site_i->TestFitType((FitType)t_i) )
+            {
+                mCoefficients.col( col ) = DelComp( site_i->GetCoordX(), site_i->GetCoordY(), site_i->GetCoordZ(),
+                           	                   mGrid->GetX(), mGrid->GetY(),  mGrid->GetZ(), fitType_i );
+                                                  
+                col++;
+            }
+        }
+    }
+    
+    arma::mat x_prime = arma::trans( mCoefficients );
+    
+    mX_prime_x = x_prime * mCoefficients;
+    mX_prime_y = x_prime * mFields->GetPotentials();
 }
 
 FieldFit::Site * FieldFit::System::FindSite( const std::string &name )
@@ -329,14 +383,27 @@ FieldFit::Field *FieldFit::System::GetField() const
     return mFields;
 }
 
-const arma::mat &FieldFit::System::GetCoefficientMatrix() const
+const arma::mat &FieldFit::System::GetLocalXPrimeX() const
 {
-    return mCoefficientMatrix;
+    return mX_prime_x;
 }
 
 const arma::mat &FieldFit::System::PotentialMatrix() const
 {
-    return mPotentialMatrix;
+    return mX_prime_y;
+}
+
+const F64 FieldFit::System::ComputeChi2( arma::vec result, size_t collIndex ) const
+{
+    if ( !mFields || collIndex >= mFields->GetPotentials().n_cols )
+    {
+        throw ArgException( "FieldFit", "System::ComputeChi2", "Tried to access a field column that does not exist " );
+    }
+    
+    arma::vec diffE = mFields->GetPotentials()[collIndex] - (mCoefficients * result);
+    arma::vec chi2 = arma::trans(diffE) * diffE;
+    
+    return chi2[0];
 }
 
 size_t FieldFit::System::NumColumns() const

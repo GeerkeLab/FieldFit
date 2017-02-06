@@ -85,6 +85,50 @@ U32 FieldFit::StringTypeToFitFlags( const std::string &fitFlags )
     return flags;
 }
 
+std::string FieldFit::EnumToString( FitType type )
+{
+    switch( type )
+    {
+    case FitType::charge:
+        	
+        return "charge";
+        	
+    case FitType::dipoleX:
+        	
+        return "dipoleX";
+    
+    case FitType::dipoleY:
+        	
+        return "dipoleY";
+    
+    case FitType::dipoleZ:
+        	
+        return "dipoleY";
+    
+    case FitType::qd20:
+    
+        return "qd20";
+    
+    case FitType::qd21c:
+    
+        return "qd21c";
+    
+    case FitType::qd21s:
+    
+        return "qd21s";
+    
+    case FitType::qd22c:
+    
+        return "qd22c";
+    
+    case FitType::qd22s:
+    
+        return "qd22s";
+    };
+        
+    return "Undefined";
+}
+
 bool FieldFit::IsSet( U32 flags, FitType type )
 {
     const U32 flagValue = ( 1 << type );

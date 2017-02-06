@@ -28,6 +28,7 @@ namespace FieldFit
     };
     
     U32 StringTypeToFitFlags( const std::string &flags );
+    std::string EnumToString( FitType type );
     
     bool IsSet( U32 flags, FitType type );
     bool IsMultiSet( U32 flags, U32 testValue );

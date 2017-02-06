@@ -105,7 +105,8 @@ workspace "FieldFit"
         includedirs {
                 "include/",
                 "extern/armadillo-7.600.2/include/",
-                "extern/tclap-1.2.1/include/"
+                "extern/tclap-1.2.1/include/",
+                "extern/rapidjson-1.1.0/include/"
             }
     
         files { 

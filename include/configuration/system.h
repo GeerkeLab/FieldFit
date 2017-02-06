@@ -74,6 +74,8 @@ namespace FieldFit
         const arma::vec &GetY() const;
         const arma::vec &GetZ() const;
         
+        size_t Size();
+        
     private:
     
         arma::vec mGridX;
@@ -102,6 +104,7 @@ namespace FieldFit
         ~System();
         
         void OnUpdate();
+        void OnUpdate2();
         
         Site * FindSite( const std::string &name );
         
@@ -115,7 +118,8 @@ namespace FieldFit
         Grid *GetGrid() const;
         Field *GetField() const;
         
-        const arma::mat &GetCoefficientMatrix() const;
+        const F64 ComputeChi2( arma::vec result, size_t collIndex ) const;
+        const arma::mat &GetLocalXPrimeX() const;
         const arma::mat &PotentialMatrix() const;
         
         size_t NumColumns() const;
@@ -131,9 +135,11 @@ namespace FieldFit
         std::vector< Site* > mSites; 
         std::unordered_map< std::string, Site* > mNameToSite;
         
+        arma::mat mCoefficients;
+        
         // OnUpdate generated
-        arma::mat mCoefficientMatrix;
-        arma::mat mPotentialMatrix;
+        arma::mat mX_prime_x;
+        arma::mat mX_prime_y;
     };
 }
 
