@@ -5,6 +5,7 @@
 #include "fitting/delcomp.h"
 
 #include <iostream>
+#include <cmath>
 
 FieldFit::Site::Site( const U32 types,
                       const std::string &name,
@@ -301,6 +302,21 @@ void FieldFit::System::OnUpdate2()
     
     mX_prime_x = x_prime * mCoefficients;
     mX_prime_y = x_prime * mFields->GetPotentials();
+    
+    // REMOVE THIS
+    /*
+    arma::mat cpy = mCoefficients;
+    
+    cpy.resize(cpy.n_rows+1, cpy.n_cols );
+    cpy.col(1)[mCoefficients.n_rows] =  std::sqrt(  0.05 );
+    cpy.col(3)[mCoefficients.n_rows] = -std::sqrt(  0.05 );
+    cpy = arma::trans(cpy) * cpy;
+    
+    std::cout << "mX_prime_x" << std::endl << mX_prime_x << std::endl;
+    std::cout << "cpy" << std::endl << cpy << std::endl;
+    mX_prime_x = cpy;
+    */
+    // END
 }
 
 FieldFit::Site * FieldFit::System::FindSite( const std::string &name )

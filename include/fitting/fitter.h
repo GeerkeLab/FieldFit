@@ -69,6 +69,7 @@ namespace FieldFit
         std::vector< U32 > mTargetCollections;
         std::vector< LocalSystem > mLocalSystems;
         std::vector< InternalConstraint > mInternalConstraints;
+        std::vector< InternalConstraint > mInternalRestraints;
     };
 };
 

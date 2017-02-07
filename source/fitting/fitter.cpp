@@ -28,6 +28,29 @@ void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const
     AddConstraints( console, constraints );
     
     //
+    // Add restraints
+    //
+    
+    for ( const InternalConstraint &constr : mInternalRestraints )
+    {
+        const F64 sqrt_fc = std::sqrt( constr.fconst );
+        
+        for ( size_t i = 0; i < constr.columns.size(); ++i )
+        {
+            const U32 col_i = constr.columns[i];
+            
+            for ( size_t j = 0; j < constr.columns.size(); ++j )
+            {
+                const U32 col_j = constr.columns[j];
+                
+                x_prime_x.row( col_i )[ col_j ] += constr.coefficients[i] * sqrt_fc *
+                                                   constr.coefficients[j] * sqrt_fc;
+                x_prime_y[ col_i ] += constr.reference / sqrt_fc;
+            }
+        }
+    }
+    
+    //
     // Add contraints to the system
     //
     
@@ -323,7 +346,14 @@ void FieldFit::Fitter::HandleSumConstraint( Console &console, const PrototypeCon
             newConstraint.coefficients.insert(newConstraint.coefficients.end(), ic.coefficients.begin(), ic.coefficients.end());
         }
         
-        mInternalConstraints.push_back( newConstraint );
+        if ( newConstraint.fconst != 0.0 )
+        {
+            mInternalRestraints.push_back( newConstraint );
+        }
+        else
+        {
+            mInternalConstraints.push_back( newConstraint );
+        }
     }
 }
 
@@ -359,7 +389,14 @@ void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeCon
                 ic_i.coefficients.push_back( -coef );
             }
             
-            mInternalConstraints.push_back( ic_i );
+            if ( ic_i.fconst != 0.0 )
+            {
+                mInternalRestraints.push_back( ic_i );
+            }
+            else
+            {
+                mInternalConstraints.push_back( ic_i );
+            }
         }
     }
 }

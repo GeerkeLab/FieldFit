@@ -422,7 +422,7 @@ void FieldFit::FillUnitsMap( Units &units, std::map< std::string, F64* > &nameTo
                     	     std::map< std::pair< std::string, std::string >, F64 > &unitsMap )
 {
     nameToUnit.insert( std::make_pair( "coord"    , &units.GetCoordConv()  ) );
-    nameToUnit.insert( std::make_pair( "charge"   , &units.GetDipoleConv() ) );
+    nameToUnit.insert( std::make_pair( "charge"   , &units.GetChargeConv() ) );
     nameToUnit.insert( std::make_pair( "dipole"   , &units.GetDipoleConv() ) );
     nameToUnit.insert( std::make_pair( "qpol"     , &units.GetQpolConv() ) );
     nameToUnit.insert( std::make_pair( "potential", &units.GetPotConv() ) );
