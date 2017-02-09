@@ -32,7 +32,7 @@ workspace "FieldFit"
     platforms { "x86_64" }
 
     startproject( "FieldFit" )
-    location( "." )
+    location( "build" )
     objdir "bin/obj/"
 
     vectorextensions "SSE"
