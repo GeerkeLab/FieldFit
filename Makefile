@@ -1,5 +1,6 @@
 bin/x86_64/FieldFit: extern/premake5
 	-mkdir build
+	./extern/premake5 gmake
 	cd build && make -j 2
 
 extern/premake5:
