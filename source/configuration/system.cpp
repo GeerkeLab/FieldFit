@@ -13,10 +13,10 @@ FieldFit::Site::Site( const U32 types,
                       const F64 coordX,
                       const F64 coordY,
                       const F64 coordZ ) :
-     mName( name ), mCoulType( coultype ),
-     mCoordX( coordX ), mCoordY( coordY ), mCoordZ( coordZ ),
-     mTypes( types )
+     mName( name ), mCoordX( coordX ), mCoordY( coordY ), 
+     mCoordZ( coordZ ), mTypes( types )
 {
+    mCoulTypes.push_back(coultype);
 }
 
 bool FieldFit::Site::TestFitType( FitType type ) const
@@ -45,14 +45,19 @@ void FieldFit::Site::AddEfield( const arma::vec &ex,
     mEfield_z = ez;
 }
 
+void FieldFit::Site::AddAlias( const std::string &alias )
+{
+    mCoulTypes.push_back(alias);
+}
+
 const std::string &FieldFit::Site::GetName() const
 {
     return mName;
 }
 
-const std::string &FieldFit::Site::GetCoulType() const
+const std::vector< std::string > &FieldFit::Site::GetCoulTypes() const
 {
-    return mCoulType;
+    return mCoulTypes;
 }
         
 F64 FieldFit::Site::GetCoordX() const
@@ -189,72 +194,6 @@ size_t FieldFit::System::NumberOfColumns() const
     return n_col;
 }
 
-void FieldFit::System::OnUpdate()
-{
-    if (!mFields)
-    {
-        throw ArgException( "FieldFit", "System::OnUpdate", "Fitting system "+mName+" requires a field" );
-    }
-    
-    if ( !mGrid)
-    {
-        throw ArgException( "FieldFit", "System::OnUpdate", "Fitting system "+mName+" requires a grid" );
-    }
-    
-    const size_t n_col = NumberOfColumns();
-    const size_t n_sets = mFields->GetPotentials().n_cols;
-    
-    // find out the size we need to rescale
-    mX_prime_x = arma::zeros( n_col, n_col );
-    mX_prime_y = arma::zeros( n_col, n_sets );
-    
-    //
-    // Todo, generate effective potentials, by subtracting the permanent field
-    //
-    
-    U32 row = 0;
-    for ( const Site* site_i : mSites )
-    {
-        //test if we have to include this type
-        for ( S32 t_i=0; t_i < FitType::size; ++t_i )
-        {
-            FitType fitType_i = (FitType) t_i;
-            
-            if ( site_i->TestFitType((FitType)t_i) )
-            {
-                arma::vec delcomp_i = DelComp( site_i->GetCoordX(), site_i->GetCoordY(), site_i->GetCoordZ(),
-                           	                   mGrid->GetX(), mGrid->GetY(),  mGrid->GetZ(), fitType_i );
-                
-                U32 col = 0;
-                for ( const Site* site_j : mSites )
-                {
-                    for ( S32 t_j=0; t_j < FitType::size; ++t_j )
-                    {
-                        FitType fitType_j = (FitType) t_j;
-                    	
-                        if ( site_j->TestFitType((FitType)t_j) )
-                        {
-                            arma::vec delcomp_j = DelComp( site_j->GetCoordX(), site_j->GetCoordY(), site_j->GetCoordZ(),
-                           	                    	       mGrid->GetX(), mGrid->GetY(),  mGrid->GetZ(), fitType_j );
-                                                              
-                            mX_prime_x.col( col )[ row ] = arma::sum( delcomp_i % delcomp_j );
-                    	   
-                            col++;
-                        }
-                    }
-                }
-                
-                for ( size_t s=0; s < n_sets; ++s )
-                {
-                    mX_prime_y.row( row )[s] = arma::sum( delcomp_i % mFields->GetPotentials().col( s ) );
-                }
-                
-                row++;
-            }
-        }
-    }
-}
-
 void FieldFit::System::OnUpdate2()
 {
     if (!mFields)
@@ -302,21 +241,6 @@ void FieldFit::System::OnUpdate2()
     
     mX_prime_x = x_prime * mCoefficients;
     mX_prime_y = x_prime * mFields->GetPotentials();
-    
-    // REMOVE THIS
-    /*
-    arma::mat cpy = mCoefficients;
-    
-    cpy.resize(cpy.n_rows+1, cpy.n_cols );
-    cpy.col(1)[mCoefficients.n_rows] =  std::sqrt(  0.05 );
-    cpy.col(3)[mCoefficients.n_rows] = -std::sqrt(  0.05 );
-    cpy = arma::trans(cpy) * cpy;
-    
-    std::cout << "mX_prime_x" << std::endl << mX_prime_x << std::endl;
-    std::cout << "cpy" << std::endl << cpy << std::endl;
-    mX_prime_x = cpy;
-    */
-    // END
 }
 
 FieldFit::Site * FieldFit::System::FindSite( const std::string &name )
@@ -344,6 +268,9 @@ void FieldFit::System::InsertSite( Site *site )
     {
         throw ArgException( "FieldFit", "System::InsertSite", "Site with name "+site->GetName()+" already exists for system "+mName );
     }
+    
+    // include an atom alias
+    site->AddAlias( mName+"::"+site->GetName() );
    
     mSites.push_back( site );
     mNameToSite.insert( std::make_pair( site->GetName(), site ) );

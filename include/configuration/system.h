@@ -28,8 +28,10 @@ namespace FieldFit
                         const arma::vec &ey,
                         const arma::vec &ez );
     
+        void AddAlias( const std::string &alias );
+    
         const std::string &GetName() const;
-        const std::string &GetCoulType() const;
+        const std::vector< std::string > &GetCoulTypes() const;
         
         F64 GetCoordX() const;
         F64 GetCoordY() const;
@@ -57,7 +59,7 @@ namespace FieldFit
         arma::vec mEfield_z;
         
         std::string mName;
-        std::string mCoulType;
+        std::vector< std::string > mCoulTypes;
         
         U32 mTypes;
     };
@@ -103,7 +105,7 @@ namespace FieldFit
         System( const std::string &name );
         ~System();
         
-        void OnUpdate();
+        //void OnUpdate();
         void OnUpdate2();
         
         Site * FindSite( const std::string &name );

@@ -275,8 +275,19 @@ void FieldFit::Fitter::PerSiteConstraintList( Console &console, const LocalSyste
     size_t collOffset = 0;
     for ( const Site *site : system->GetSites() )
     {
+        bool include = false;
+        
+        for ( const std::string &ctype : site->GetCoulTypes() )
+        {
+            if ( coulTypes.find(ctype) != coulTypes.end() )
+            {
+                include=true;
+                break;
+            }
+        }
+
         // Test if we want to include this site
-        if ( coulTypes.find(site->GetCoulType()) != coulTypes.end() )
+        if ( include )
         {
             InternalConstraint newConstraint;
             newConstraint.reference = proto.GetTarget();
@@ -294,14 +305,10 @@ void FieldFit::Fitter::PerSiteConstraintList( Console &console, const LocalSyste
                     {
                         if( IsSet( proto.GetFlags(), fitType ) )
                         {
-                            // Test if we want to include this site
-                            if ( coulTypes.find(site->GetCoulType()) != coulTypes.end() )
-                            {
-                                newConstraint.columns.push_back( startCol + collOffset );
+                            newConstraint.columns.push_back( startCol + collOffset );
                              
-                                F64 coef = ConstraintCoefficient( site, fitType, localSys.collectionIndex );
-                                newConstraint.coefficients.push_back( coef );
-                            }    
+                            F64 coef = ConstraintCoefficient( site, fitType, localSys.collectionIndex );
+                            newConstraint.coefficients.push_back( coef );  
                         }
                             
                         collOffset++;
@@ -335,6 +342,11 @@ void FieldFit::Fitter::HandleSumConstraint( Console &console, const PrototypeCon
         perSiteList.clear();
         PerSiteConstraintList( console, localSys, proto,  perSiteList );
         
+        if ( perSiteList.size() == 0 )
+        {
+            throw ArgException( "FieldFit", "Fitter::HandleSumConstraint", "Couldnt fulfill a constraint" );
+        }
+        
         // Merge the per site lists;
         InternalConstraint newConstraint;
         newConstraint.reference = proto.GetTarget();
@@ -366,6 +378,11 @@ void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeCon
     for ( const LocalSystem &localSys : mLocalSystems )
     { 
         PerSiteConstraintList( console, localSys, proto,  perSiteList );  
+    }
+    
+    if ( perSiteList.size() == 0 )
+    {
+        throw ArgException( "FieldFit", "Fitter::HandleSymConstraint", "Couldnt fulfill a constraint" );
     }
     
     //for ( size_t i=0,iend=perSiteList.size(); i < iend; ++i )
