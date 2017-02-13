@@ -14,7 +14,6 @@ namespace FieldFit
     class BlockParser;
     class Configuration;
     
-    
     Units ReadUnits( const BlockParser & );
     
     void ReadGrids( const BlockParser &, const Units &units, Configuration &config );

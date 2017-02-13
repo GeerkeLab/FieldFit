@@ -49,6 +49,8 @@ namespace FieldFit
     
         void Fit( Console &console, const Configuration &config, const Constraints &constr, bool verbose );
     
+        void SelectCollection( U32 col );
+    
     private:
     
         F64 ConstraintCoefficient( const Site *site, FitType fitType, U32 collectionIndex );

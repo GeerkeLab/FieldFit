@@ -140,9 +140,19 @@ void FieldFit::ReadSystems( const BlockParser &bp, const Units &units, Configura
     }      
 }
 
-void FieldFit::ReadPermChargeSets( const BlockParser &, const Units &units, Configuration &config )
+void FieldFit::ReadPermChargeSets( const BlockParser &bp, const Units &units, Configuration &config )
 {
+    const std::vector< Block > *blockArray = bp.GetBlockArray("PERMCHARGES");
     
+    if ( !blockArray )
+    {
+        throw ArgException( "FieldFit", "ReadPermChargeSets", "block PERMCHARGES was not present!" );
+    }
+    
+    for ( const Block &block : *blockArray )
+    { 
+        ReadPermChargeSet(block,units,config);
+    }
 }
 
 void FieldFit::ReadPermDipoleSets( const BlockParser &, const Units &units, Configuration &config )
@@ -376,41 +386,41 @@ FieldFit::System* FieldFit::ReadSystem( const Block &block, const Units &units  
 
 void FieldFit::ReadPermChargeSet( const Block &block, const Units &units, Configuration &config )
 {
-    /*
-    if ( block.Size() < 2 )
+    if ( block.Size() < 3 )
     {
-        Error::Warn( std::cout, "block [PERMCHARGES] was too small ( at least 2 argument expected ) !" );
-        return Error::Status::FAILED_IO;
+        throw ArgException( "FieldFit", "ReadPermChargeSet", "block [PERMCHARGES] was too small ( at least 2 argument expected ) !" );    
     }
-
-    mSystemName = block.GetToken( 0 )->GetToken();
-    U32 numSites   = block.GetToken( 1 )->GetValue< U32 >();
-      
-    if ( block.Size() != ( 2 + ( numSites * 4 ) ) )
+    
+    const std::string &systemName = block.GetToken( 0 )->GetToken();
+    const U32 permSites = block.GetToken( 1 )->GetValue< U32 >();
+    
+    if ( block.Size() != ( 2 + ( permSites * 4 ) ) )
     {
-        Error::Warn( std::cout, "block [PERMCHARGES] did not have the right amount of arguments based on the size indicator!" );
-        return Error::Status::FAILED_IO;
+        throw ArgException( "FieldFit", "ReadPermChargeSet", "block [PERMCHARGES] did not have the right amount of arguments based on the size indicator!" );    
     }
-
+    
+    System *sys = config.FindSystem( systemName );
+    if ( !sys )
+    {
+        throw ArgException( "FieldFit", "ReadPermChargeSet", "System with name "+systemName+" not found!" );
+    }
+       
     const F64 coordConv  = units.GetCoordConv();
     const F64 chargeConv = units.GetChargeConv();
     
     U32 index = 2;
-
-    for ( U32 i=0; i < numSites; ++i )
+    for ( U32 i=0; i < permSites; ++i )
     {
-        PermSite permSite;
+        const F64 x = block.GetToken( index+0 )->GetValue< F64 >() * coordConv;
+        const F64 y = block.GetToken( index+1 )->GetValue< F64 >() * coordConv;
+        const F64 z = block.GetToken( index+2 )->GetValue< F64 >() * coordConv;
+        const F64 val = block.GetToken( index+3 )->GetValue< F64 >() * chargeConv;
         
-        permSite.x   	 = block.GetToken( index+0 )->GetValue< F64 >() * coordConv;
-        permSite.y       = block.GetToken( index+1 )->GetValue< F64 >() * coordConv;
-        permSite.z       = block.GetToken( index+2 )->GetValue< F64 >() * coordConv;
-        permSite.pval    = block.GetToken( index+3 )->GetValue< F64 >() * chargeConv;
-        permSite.permType = ValueType::charge;
-        mPermSites.push_back( permSite );
+        PermSite *psite = new PermSite( x, y, z, val, FitType::charge );        
+        sys->InsertPermSite(psite);
 
         index += 4;
     }
-    */
 }
 
 void FieldFit::ReadPermDipoleSet( const Block &, const Units &units, Configuration &config )

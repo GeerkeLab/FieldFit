@@ -56,6 +56,8 @@ int main(int argc, char** argv)
     std::vector< std::string > multiFiles;
     std::vector< std::string > fieldFiles;
     
+    std::vector< U32 > collectionSelection;
+    
     bool json = false;
     bool plain = false;
     bool debug = false;
@@ -67,7 +69,7 @@ int main(int argc, char** argv)
 	try 
     {  
         const std::string blockDesc = "Block Description: ";
-	    TCLAP::CmdLine cmd( blockDesc, ' ', "0.9" );
+	    TCLAP::CmdLine cmd( blockDesc, ' ', "0.9.1" );
 	        
 	    TCLAP::SwitchArg verboseSwitch("v","verbose","Print verbose output", cmd, false);
         //TCLAP::SwitchArg plainSwitch("p","plain","Format output as plain", cmd, false);
@@ -75,13 +77,19 @@ int main(int argc, char** argv)
         TCLAP::MultiArg<std::string> multiFileArg("f", "files", "File containing field-fit file names", false,"string" );
         TCLAP::UnlabeledMultiArg<std::string> multi( "fieldFiles", "Generic input for field-files containing blocks", false,"string" );
        
+        TCLAP::MultiArg<U32> multiSelect("s", "select", "Select a column in the field files (counts for all!)", false,"U32" );
+
         cmd.add( multiFileArg );
+        cmd.add( multiSelect );
+        
         //make sure this is last
         cmd.add(  multi );
 	    cmd.parse( argc, argv );
        
         multiFiles = multiFileArg.getValue();
         fieldFiles = multi.getValue();
+       
+        collectionSelection = multiSelect.getValue();
        
         //plain = plainSwitch.getValue();
         verbose = verboseSwitch.getValue();
@@ -112,6 +120,7 @@ int main(int argc, char** argv)
         ReadGrids( bp, units, config );
         ReadFields( bp, units, config );
         ReadEfields( bp, units, config );
+        ReadPermChargeSets( bp, units, config );
         
         // parse constraints
         ReadSumConstraintSet( bp, units, constr );
@@ -130,6 +139,12 @@ int main(int argc, char** argv)
         }
         
         Fitter fitter; 
+        
+        for ( U32 col : collectionSelection )
+        {
+            fitter.SelectCollection( col );
+        }
+        
         fitter.Fit( console, config, constr, debug );
     }
     catch (FieldFit::ArgException &e)  // catch any exceptions

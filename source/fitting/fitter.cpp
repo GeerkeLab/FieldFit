@@ -22,6 +22,11 @@ FieldFit::Fitter::InternalConstraint::InternalConstraint() :
     
 }
 
+void FieldFit::Fitter::SelectCollection( U32 col )
+{
+    mTargetCollections.push_back( col );
+}
+
 void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const Constraints &constraints, bool debug )
 {
     AddConfiguration( console, config );
@@ -165,15 +170,14 @@ void FieldFit::Fitter::AddConfiguration( Console &console, const Configuration &
     {
         const arma::mat &localXPrimeX = sys->GetLocalXPrimeX();
         const arma::mat &localXPrimeY  = sys->PotentialMatrix();
-        
-        //
-        // Insert collection selector here!
-        //
-        // PLACEHOLDER
-        mTargetCollections.resize( localXPrimeY.n_cols );
-        std::iota(mTargetCollections.begin(), mTargetCollections.end(), 0);
-        // END PLACEHOLDER
-        
+          
+        // if no selections were made 
+        if ( mTargetCollections.size() == 0 )
+        {
+            mTargetCollections.resize( localXPrimeY.n_cols );
+            std::iota(mTargetCollections.begin(), mTargetCollections.end(), 0);
+        }
+ 
         for ( U32 i : mTargetCollections )
         {
             // this is for later if the selection is user input driven!

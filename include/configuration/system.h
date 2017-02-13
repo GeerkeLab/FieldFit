@@ -64,6 +64,26 @@ namespace FieldFit
         U32 mTypes;
     };
     
+    class PermSite
+    {
+    public:
+        
+        PermSite( F64 x, F64 y, F64 z, F64 val, FitType type );
+    
+        F64 GetCoordX() const;
+        F64 GetCoordY() const;
+        F64 GetCoordZ() const;
+        F64 GetValue() const;
+        FitType GetType() const;
+        
+    private:
+        F64 mCoordX;
+        F64 mCoordY;
+        F64 mCoordZ;
+        F64 mValue;
+        FitType mType;
+    };
+    
     class Grid
     {
     public:
@@ -113,6 +133,7 @@ namespace FieldFit
         void InsertSite( Site *site );
         void InsertGrid( Grid *grid );
         void InsertField( Field *field );
+        void InsertPermSite( PermSite *site );
         
         const std::string &GetName() const; 
         const std::vector< Site* > &GetSites() const;
@@ -129,14 +150,17 @@ namespace FieldFit
     private:
     
         size_t NumberOfColumns() const;
-    
+        arma::vec GeneratePermField() const;
+        
         // Data
         Grid *mGrid;
         Field *mFields;
         std::string mName;
         std::vector< Site* > mSites; 
+        std::vector< PermSite* > mPermSites; 
         std::unordered_map< std::string, Site* > mNameToSite;
         
+        arma::vec mPermField;
         arma::mat mCoefficients;
         
         // OnUpdate generated

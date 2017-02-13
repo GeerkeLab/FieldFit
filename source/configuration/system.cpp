@@ -112,6 +112,37 @@ size_t FieldFit::Site::NumColumns() const
     return collOffset;
 }
 
+FieldFit::PermSite::PermSite( F64 x, F64 y, F64 z, F64 val, FitType type ) :
+    	mCoordX( x ), mCoordY( y ), mCoordZ( z ), mValue( val ), mType( type )
+{
+    
+}
+
+F64 FieldFit::PermSite::GetCoordX() const
+{
+    return mCoordX;
+}
+
+F64 FieldFit::PermSite::GetCoordY() const
+{
+    return mCoordY;
+}
+
+F64 FieldFit::PermSite::GetCoordZ() const
+{
+    return mCoordZ;
+}
+
+F64 FieldFit::PermSite::GetValue() const
+{
+    return mValue;
+}
+
+FieldFit::FitType FieldFit::PermSite::GetType() const
+{
+    return mType;
+}
+
 FieldFit::Grid::Grid( const arma::vec &x,
         	       	  const arma::vec &y,
                       const arma::vec &z ) :
@@ -150,6 +181,7 @@ const arma::mat &FieldFit::Field::GetPotentials() const
     return mPotentials;
 }
 
+
 FieldFit::System::System( const std::string &name ) :
     mGrid(nullptr), mFields(nullptr), mName( name )
 {
@@ -162,7 +194,18 @@ FieldFit::System::~System()
     
     for( Site *site : mSites )
     {
-        delete site;
+        if (site)
+        {
+            delete site;   
+        }
+    }
+    
+    for( PermSite *psite : mPermSites )
+    {
+        if (psite)
+        {
+            delete psite;
+        }
     }
     
     if ( mGrid )
@@ -194,6 +237,31 @@ size_t FieldFit::System::NumberOfColumns() const
     return n_col;
 }
 
+arma::vec FieldFit::System::GeneratePermField() const
+{
+    arma::vec permValues;
+    arma::mat permCoefficients;
+    
+    const size_t n_col = mPermSites.size();
+    const size_t n_points = mFields->GetPotentials().n_rows;
+    
+    permValues = arma::zeros( n_col );
+    permCoefficients = arma::zeros( n_points, n_col );
+    
+    U32 col = 0;
+    for ( const PermSite* psite_i : mPermSites )
+    {
+        permCoefficients.col( col ) = DelComp( psite_i->GetCoordX(), psite_i->GetCoordY(), psite_i->GetCoordZ(),
+                           	                   mGrid->GetX(), mGrid->GetY(),  mGrid->GetZ(), psite_i->GetType() );
+      
+        permValues[col] = psite_i->GetValue();
+                                          
+        col++;
+    }
+   
+    return permCoefficients * permValues;
+}
+
 void FieldFit::System::OnUpdate2()
 {
     if (!mFields)
@@ -205,7 +273,7 @@ void FieldFit::System::OnUpdate2()
     {
         throw ArgException( "FieldFit", "System::OnUpdate", "Fitting system "+mName+" requires a grid" );
     }
-    
+
     const size_t n_col = NumberOfColumns();
     const size_t n_sets = mFields->GetPotentials().n_cols;
     const size_t n_points = mFields->GetPotentials().n_rows;
@@ -214,6 +282,15 @@ void FieldFit::System::OnUpdate2()
     mX_prime_x = arma::zeros( n_col, n_col );
     mX_prime_y = arma::zeros( n_col, n_sets );
     mCoefficients = arma::zeros( n_points, n_col );
+    
+    if ( mPermSites.size() > 0 )
+    {
+        mPermField = GeneratePermField();
+    }
+    else
+    {
+        mPermField = arma::zeros( n_points );
+    }
     
     //
     // Todo, generate effective potentials, by subtracting the permanent field
@@ -240,7 +317,7 @@ void FieldFit::System::OnUpdate2()
     arma::mat x_prime = arma::trans( mCoefficients );
     
     mX_prime_x = x_prime * mCoefficients;
-    mX_prime_y = x_prime * mFields->GetPotentials();
+    mX_prime_y = x_prime * ( mFields->GetPotentials() - mPermField );
 }
 
 FieldFit::Site * FieldFit::System::FindSite( const std::string &name )
@@ -306,6 +383,16 @@ void FieldFit::System::InsertField( Field *field )
     mFields = field;
 }
 
+void FieldFit::System::InsertPermSite( PermSite *site )
+{
+    if (!site)
+    {
+        throw ArgException( "FieldFit", "System::InsertPermSite", "Inserting a null psite in system "+mName );
+    }
+    
+    mPermSites.push_back(site);
+}
+
 const std::string &FieldFit::System::GetName() const
 {
     return mName;
@@ -343,14 +430,16 @@ const F64 FieldFit::System::ComputeChi2( arma::vec result, size_t collIndex ) co
         throw ArgException( "FieldFit", "System::ComputeChi2", "Tried to access a field column that does not exist " );
     }
     
-    arma::vec diffE = mFields->GetPotentials()[collIndex] - (mCoefficients * result);
+    arma::vec diffE = ( mFields->GetPotentials().col(collIndex) - mPermField ) - (mCoefficients * result);
     arma::vec chi2 = arma::trans(diffE) * diffE;
     
     return chi2[0];
 }
 
 size_t FieldFit::System::NumColumns() const
-{
+{  
+    
+    
     size_t cols = 0;
     for( const Site *site : mSites )
     {
