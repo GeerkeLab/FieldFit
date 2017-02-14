@@ -100,6 +100,8 @@ int main(int argc, char** argv)
         console.Error( Message( "::", "TCLAP::main", e.error() ) );
     }
     
+    const Units *units = nullptr;
+    
     try 
     {
         // In a first step we grep all the lines from the multifiles
@@ -113,18 +115,19 @@ int main(int argc, char** argv)
         
         // Initiate reading of the field files
         BlockParser bp(fieldFiles);
+
+        units = ReadUnits( bp );
         
-        const Units units = ReadUnits( bp );
-        
-        ReadSystems( bp, units, config );
-        ReadGrids( bp, units, config );
-        ReadFields( bp, units, config );
-        ReadEfields( bp, units, config );
-        ReadPermChargeSets( bp, units, config );
-        
+        ReadSystems( bp, *units, config );
+        ReadGrids( bp, *units, config );
+        ReadFields( bp, *units, config );
+        ReadEfields( bp, *units, config );
+        ReadPermChargeSets( bp, *units, config );
+        ReadPermDipoleSets( bp, *units, config );
+
         // parse constraints
-        ReadSumConstraintSet( bp, units, constr );
-        ReadSymConstraintSet( bp, units, constr );
+        ReadSumConstraintSet( bp, *units, constr );
+        ReadSymConstraintSet( bp, *units, constr );
         
         //clean up after reading
         bp.Clear();
@@ -155,12 +158,17 @@ int main(int argc, char** argv)
     auto t1 = high_resolution_clock::now();
     console.Warn( Message( "", "main", "Runtime (milliseconds): " + Util::ToString( (size_t)duration_cast<milliseconds>(t1 - t0).count() ) ) );
     
-    if ( plain )
+    if ( units )
     {
-        console.WritePlain(std::cout,verbose);
-    }
-    else 
-    {
-        console.WriteJson(std::cout,verbose);
+        if ( plain )
+        {
+            console.WritePlain(std::cout, *units, verbose);
+        }
+        else 
+        {
+            console.WriteJson(std::cout, *units, verbose);
+        }
+        
+        delete units;
     }
 }

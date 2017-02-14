@@ -3,6 +3,7 @@
 #define __UNITS_H__
 
 #include "common/types.h"
+#include "configuration/fitType.h"
 
 namespace FieldFit
 {
@@ -44,6 +45,9 @@ namespace FieldFit
     public:
         
         Units();
+        
+        F64 ToInternalUnits( FitType type, F64 val ) const;
+        F64 FromInternalUnits( FitType type, F64 val ) const;
         
         F64 GetCoordConv() const;
         F64 GetChargeConv() const;

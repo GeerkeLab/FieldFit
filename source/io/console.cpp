@@ -52,7 +52,7 @@ void FieldFit::Console::AddSystemResult( const SystemResult &sr )
     mSystemResults.push_back( sr );
 }
 
-void FieldFit::Console::WritePlain( std::ostream &stream, bool verbose )
+void FieldFit::Console::WritePlain( std::ostream &stream, const Units &units, bool verbose )
 {
     for ( const Message &msg : mWarnings )
     {
@@ -65,7 +65,7 @@ void FieldFit::Console::WritePlain( std::ostream &stream, bool verbose )
     }
 }
 
-void FieldFit::Console::WriteJson( std::ostream &stream, bool verbose )
+void FieldFit::Console::WriteJson( std::ostream &stream, const Units &units, bool verbose )
 {
     StringBuffer sb;
     PrettyWriter<StringBuffer> writer(sb);
@@ -76,7 +76,7 @@ void FieldFit::Console::WriteJson( std::ostream &stream, bool verbose )
         writer.StartObject();
         for ( const SystemResult &system : mSystemResults )
         {
-            system.Serialize( writer, verbose );
+            system.Serialize( writer, units, verbose );
         }
         writer.EndObject();
         

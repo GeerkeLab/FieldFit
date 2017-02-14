@@ -2,6 +2,7 @@
 #ifndef __CONSOLE_H__
 #define __CONSOLE_H__
 
+#include "io/units.h"
 #include "common/types.h"
 #include "configuration/fitType.h"
 
@@ -14,42 +15,7 @@ namespace FieldFit
     struct FitResult
     {
         template <typename Writer>
-        void Serialize( Writer& writer, bool verbose ) const 
-        {
-            writer.Key(name.c_str());
-            writer.StartObject();
-            
-            for ( S32 t=0; t < FitType::size; ++t )
-            {
-                FitType fitType = (FitType) t;
-            	
-                if ( values[t].size() > 0 || verbose )
-                {
-                    std::string fitName = EnumToString( fitType );
-                    
-                    writer.Key(fitName.c_str());
-                    writer.StartArray();
-                    for ( F64 val : values[t] )
-                    {
-                        writer.Double( val );
-                    }
-                    writer.EndArray();
-                }
-            }
-            
-            if ( alpha.size() > 0 || verbose )
-            {
-                writer.Key("alpha");
-                writer.StartArray();
-                for ( F64 val : alpha )
-                {
-                    writer.Double( val );
-                }
-                writer.EndArray();
-            }
-            
-            writer.EndObject();
-        }
+        void Serialize( Writer& writer, const Units &units, bool verbose ) const;
         
         std::string name;  
         std::vector< F64 > values[FitType::size];
@@ -62,37 +28,7 @@ namespace FieldFit
         ~SystemResult();
         
         template <typename Writer>
-        void Serialize( Writer& writer, bool verbose ) const 
-        {
-            writer.Key(name.c_str());
-            writer.StartObject();
-            {
-                 writer.Key("sites");
-                 writer.StartObject();
-                 for ( const FitResult &result : fitResults )
-                 {
-                     result.Serialize( writer, verbose );
-                 }
-                 writer.EndObject();
-                 
-                 writer.Key("chi2");
-                 writer.StartArray();
-                 for ( F64 val : chi2)
-                 {
-                     writer.Double( val );
-                 }
-                 writer.EndArray();
-                 
-                 writer.Key("rmsd");
-                 writer.StartArray();
-                 for ( F64 val : rmsd)
-                 {
-                     writer.Double( val );
-                 }
-                 writer.EndArray();
-            }
-            writer.EndObject();
-        } 
+        void Serialize( Writer& writer, const Units &units, bool verbose ) const; 
         
         std::string name;  
         std::vector< FitResult > fitResults;
@@ -123,8 +59,8 @@ namespace FieldFit
     
         void AddSystemResult( const SystemResult &sr );
     
-        void WritePlain( std::ostream &stream, bool verbose );
-        void WriteJson( std::ostream &stream, bool verbose );
+        void WritePlain( std::ostream &stream, const Units &units, bool verbose );
+        void WriteJson( std::ostream &stream, const Units &units, bool verbose );
         
     private:
         	
@@ -132,6 +68,77 @@ namespace FieldFit
         std::vector< Message > mErrors;
         std::vector< SystemResult > mSystemResults;
     };
+    
+    template <typename Writer>
+    void FitResult::Serialize( Writer& writer, const Units &units, bool verbose ) const 
+    {
+       writer.Key(name.c_str());
+       writer.StartObject();
+            
+       for ( S32 t=0; t < FitType::size; ++t )
+       {
+           FitType fitType = (FitType) t;
+            	
+           if ( values[t].size() > 0 || verbose )
+           {
+               std::string fitName = EnumToString( fitType );
+                    
+               writer.Key(fitName.c_str());
+               writer.StartArray();
+               for ( F64 val : values[t] )
+               {
+                   writer.Double( units.FromInternalUnits( fitType, val ) );
+               }
+               writer.EndArray();
+           }
+       }
+            
+       if ( alpha.size() > 0 || verbose )
+       {
+            writer.Key("alpha");
+            writer.StartArray();
+            for ( F64 val : alpha )
+            {
+                writer.Double( val / units.GetAlphaConv() );
+            }
+            writer.EndArray();
+        }
+            
+        writer.EndObject();
+    }    
+    
+    template <typename Writer>
+    void SystemResult::Serialize( Writer& writer, const Units &units, bool verbose ) const 
+    {
+        writer.Key(name.c_str());
+        writer.StartObject();
+        {
+             writer.Key("sites");
+             writer.StartObject();
+             for ( const FitResult &result : fitResults )
+             {
+                 result.Serialize( writer, units, verbose );
+             }
+             writer.EndObject();
+                 
+             writer.Key("chi2");
+             writer.StartArray();
+             for ( F64 val : chi2)
+             {
+                writer.Double( val );
+             }
+             writer.EndArray();
+                 
+             writer.Key("rmsd");
+             writer.StartArray();
+             for ( F64 val : rmsd)
+             {
+                 writer.Double( val );
+             }
+             writer.EndArray();
+        }
+        writer.EndObject();
+    }
 }
 
 #endif

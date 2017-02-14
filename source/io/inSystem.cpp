@@ -13,7 +13,7 @@ namespace FieldFit
                        std::map< std::pair< std::string, std::string >, F64 > &unitsMap );  
 }
 
-FieldFit::Units FieldFit::ReadUnits( const BlockParser &bp )
+FieldFit::Units* FieldFit::ReadUnits( const BlockParser &bp )
 {
     const Block *block = bp.GetBlock("UNITS");
     
@@ -27,11 +27,11 @@ FieldFit::Units FieldFit::ReadUnits( const BlockParser &bp )
         throw ArgException( "FieldFit", "ReadUnits", "block [UNITS] did not have the right amount of arguments" );
     }
     
-    Units unitsObj;
+    Units *unitsObj = new Units;
     std::map< std::string, F64* > mapping;
     std::map< std::pair< std::string, std::string >, F64 > units;
     
-    FillUnitsMap( unitsObj, mapping, units );
+    FillUnitsMap( *unitsObj, mapping, units );
     
     for ( U32 i=0; i < block->Size(); i += 2 )
     {
@@ -144,29 +144,25 @@ void FieldFit::ReadPermChargeSets( const BlockParser &bp, const Units &units, Co
 {
     const std::vector< Block > *blockArray = bp.GetBlockArray("PERMCHARGES");
     
-    if ( !blockArray )
+    if ( blockArray )
     {
-        throw ArgException( "FieldFit", "ReadPermChargeSets", "block PERMCHARGES was not present!" );
-    }
-    
-    for ( const Block &block : *blockArray )
-    { 
-        ReadPermChargeSet(block,units,config);
+        for ( const Block &block : *blockArray )
+        { 
+            ReadPermChargeSet(block,units,config);
+        }
     }
 }
 
-void FieldFit::ReadPermDipoleSets( const BlockParser &, const Units &units, Configuration &config )
+void FieldFit::ReadPermDipoleSets( const BlockParser &bp, const Units &units, Configuration &config )
 {
     const std::vector< Block > *blockArray = bp.GetBlockArray("PERMDIPOLES");
     
-    if ( !blockArray )
+    if ( blockArray )
     {
-        throw ArgException( "FieldFit", "ReadPermDipoleSets", "block PERMDIPOLES was not present!" );
-    }
-    
-    for ( const Block &block : *blockArray )
-    { 
-        ReadPermDipoleSet(block,units,config);
+        for ( const Block &block : *blockArray )
+        { 
+            ReadPermDipoleSet(block,units,config);
+        }
     }
 }
 
@@ -396,7 +392,7 @@ FieldFit::System* FieldFit::ReadSystem( const Block &block, const Units &units  
 
 void FieldFit::ReadPermChargeSet( const Block &block, const Units &units, Configuration &config )
 {
-    if ( block.Size() < 3 )
+    if ( block.Size() < 2 )
     {
         throw ArgException( "FieldFit", "ReadPermChargeSet", "block [PERMCHARGES] was too small ( at least 2 argument expected ) !" );    
     }
@@ -433,9 +429,9 @@ void FieldFit::ReadPermChargeSet( const Block &block, const Units &units, Config
     }
 }
 
-void FieldFit::ReadPermDipoleSet( const Block &, const Units &units, Configuration &config )
+void FieldFit::ReadPermDipoleSet( const Block &block, const Units &units, Configuration &config )
 {
-    if ( block.Size() < 3 )
+    if ( block.Size() < 2 )
     {
         throw ArgException( "FieldFit", "ReadPermDipoleSet", "block [PERMDIPOLES] was too small ( at least 2 argument expected ) !" );    
     }
@@ -459,7 +455,7 @@ void FieldFit::ReadPermDipoleSet( const Block &, const Units &units, Configurati
     
     U32 index = 2;
 
-    for ( U32 i=0; i < sites; ++i )
+    for ( U32 i=0; i < permSites; ++i )
     {
         const F64 x = block.GetToken( index+0 )->GetValue< F64 >() * coordConv;
         const F64 y = block.GetToken( index+1 )->GetValue< F64 >() * coordConv;

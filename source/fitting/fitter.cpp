@@ -136,6 +136,10 @@ void FieldFit::Fitter::WriteSolution(Console &console)
             FitResult &fitResult = systemResult.fitResults[siteIndex];
             fitResult.name = site->GetName();
             
+            F64 dipoleX = 0.0;
+            F64 dipoleY = 0.0;
+            F64 dipoleZ = 0.0;
+            
             for ( S32 t=0; t < FitType::size; ++t )
             {
                 FitType fitType = (FitType) t;
@@ -144,8 +148,57 @@ void FieldFit::Fitter::WriteSolution(Console &console)
                 {
                     fitResult.values[fitType].push_back( lvec[col] );
                 
+                    // Store information for the alpha calculation
+                    if ( fitType == FitType::dipoleX )
+                    {
+                        dipoleX = lvec[col];
+                    }
+                    else if ( fitType == FitType::dipoleY )
+                    {
+                        dipoleY = lvec[col];
+                    }
+                    else if ( fitType == FitType::dipoleZ )
+                    {
+                        dipoleZ = lvec[col];
+                    }
+                    
                     col++;
                 }
+            }
+            
+            if ( site->TestSpecialType( SpecialFlag::alpha ) )
+            {
+                const size_t efieldIndex = localSys.collectionIndex;
+                const F64 efieldX = site->GetEfieldX()[ efieldIndex ];
+                const F64 efieldY = site->GetEfieldY()[ efieldIndex ];
+                const F64 efieldZ = site->GetEfieldZ()[ efieldIndex ];
+                
+                size_t alphaContrib = 0;
+        	    F64 alphaSum = 0.0;
+                
+                if ( dipoleX != 0.0 && efieldX != 0.0 )
+                {
+                    F64 alpha_xx = dipoleX / efieldX;
+                    alphaContrib++;
+                    alphaSum += alpha_xx;
+                }
+                
+                if ( dipoleY != 0.0 && efieldY != 0.0 )
+                {
+                    F64 alpha_yy = dipoleY / efieldY;
+                    alphaContrib++;
+                    alphaSum += alpha_yy;
+                }
+                
+                if ( dipoleZ != 0.0 && efieldZ != 0.0 )
+                {
+                    F64 alpha_zz = dipoleZ / efieldZ;
+                    alphaContrib++;
+                    alphaSum += alpha_zz;
+                }
+                
+                const F64 alpha = alphaSum / F64(alphaContrib);
+                fitResult.alpha.push_back(alpha);
             }
             
             siteIndex++;

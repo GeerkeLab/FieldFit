@@ -314,10 +314,9 @@ void FieldFit::System::OnUpdate2()
         }
     }
     
-    arma::mat x_prime = arma::trans( mCoefficients );
-    
+    arma::mat x_prime = arma::trans( mCoefficients );   
     mX_prime_x = x_prime * mCoefficients;
-    mX_prime_y = x_prime * ( mFields->GetPotentials() - mPermField );
+    mX_prime_y = x_prime * ( mFields->GetPotentials() - arma::repmat( mPermField, 1, n_sets ) );
 }
 
 FieldFit::Site * FieldFit::System::FindSite( const std::string &name )

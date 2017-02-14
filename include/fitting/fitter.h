@@ -52,7 +52,7 @@ namespace FieldFit
         void SelectCollection( U32 col );
     
     private:
-    
+        
         F64 ConstraintCoefficient( const Site *site, FitType fitType, U32 collectionIndex );
         void PerSiteConstraintList( Console &console, const LocalSystem &localSys, const PrototypeConstraint &proto, 
                                     std::vector< InternalConstraint > &perSiteList );

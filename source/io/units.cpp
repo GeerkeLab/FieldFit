@@ -85,3 +85,97 @@ F64 &Units::GetEfieldConv()
 {
     return mEfieldConv;
 }
+
+F64 Units::ToInternalUnits( FitType type, F64 val ) const
+{
+    F64 result = val;
+    
+    switch( type )
+    {
+    case FitType::charge:
+        	
+        result *= mChargeConv;
+        break;
+    case FitType::dipoleX:
+        	
+        result *= mDipoleConv;
+        break;
+    case FitType::dipoleY:
+        	
+        result *= mDipoleConv;
+        break;
+    case FitType::dipoleZ:
+        	
+        result *= mDipoleConv;
+        break;
+    case FitType::qd20:
+    
+        result *= mQpolConv;
+        break;
+    case FitType::qd21c:
+    
+        result *= mQpolConv;
+        break;
+    case FitType::qd21s:
+    
+        result *= mQpolConv;
+        break;
+    case FitType::qd22c:
+    
+        result *= mQpolConv;
+        break;
+    case FitType::qd22s:
+    
+        result *= mQpolConv;
+        break;
+    };
+    
+    return result;
+}
+
+F64 Units::FromInternalUnits( FitType type, F64 val ) const
+{
+    F64 result = val;
+    
+    switch( type )
+    {
+    case FitType::charge:
+        	
+        result /= mChargeConv;
+        break;
+    case FitType::dipoleX:
+        	
+        result /= mDipoleConv;
+        break;
+    case FitType::dipoleY:
+        	
+        result /= mDipoleConv;
+        break;
+    case FitType::dipoleZ:
+        	
+        result /= mDipoleConv;
+        break;
+    case FitType::qd20:
+    
+        result /= mQpolConv;
+        break;
+    case FitType::qd21c:
+    
+        result /= mQpolConv;
+        break;
+    case FitType::qd21s:
+    
+        result /= mQpolConv;
+        break;
+    case FitType::qd22c:
+    
+        result /= mQpolConv;
+        break;
+    case FitType::qd22s:
+    
+        result /= mQpolConv;
+        break;
+    };
+    
+    return result;
+}
