@@ -157,7 +157,17 @@ void FieldFit::ReadPermChargeSets( const BlockParser &bp, const Units &units, Co
 
 void FieldFit::ReadPermDipoleSets( const BlockParser &, const Units &units, Configuration &config )
 {
+    const std::vector< Block > *blockArray = bp.GetBlockArray("PERMDIPOLES");
     
+    if ( !blockArray )
+    {
+        throw ArgException( "FieldFit", "ReadPermDipoleSets", "block PERMDIPOLES was not present!" );
+    }
+    
+    for ( const Block &block : *blockArray )
+    { 
+        ReadPermDipoleSet(block,units,config);
+    }
 }
 
 void FieldFit::ReadGrid( const Block &block, const Units &units, Configuration &config )
@@ -425,7 +435,49 @@ void FieldFit::ReadPermChargeSet( const Block &block, const Units &units, Config
 
 void FieldFit::ReadPermDipoleSet( const Block &, const Units &units, Configuration &config )
 {
+    if ( block.Size() < 3 )
+    {
+        throw ArgException( "FieldFit", "ReadPermDipoleSet", "block [PERMDIPOLES] was too small ( at least 2 argument expected ) !" );    
+    }
     
+    const std::string &systemName = block.GetToken( 0 )->GetToken();
+    const U32 permSites = block.GetToken( 1 )->GetValue< U32 >();
+    
+    if ( block.Size() != ( 2 + ( permSites * 6 ) ) )
+    {
+        throw ArgException( "FieldFit", "ReadPermDipoleSet", "block [PERMDIPOLES] did not have the right amount of arguments based on the size indicator!" );    
+    }
+    
+    System *sys = config.FindSystem( systemName );
+    if ( !sys )
+    {
+        throw ArgException( "FieldFit", "ReadPermDipoleSet", "System with name "+systemName+" not found!" );
+    }
+    
+    const F64 coordConv  = units.GetCoordConv();
+    const F64 dipoleConv = units.GetDipoleConv();
+    
+    U32 index = 2;
+
+    for ( U32 i=0; i < sites; ++i )
+    {
+        const F64 x = block.GetToken( index+0 )->GetValue< F64 >() * coordConv;
+        const F64 y = block.GetToken( index+1 )->GetValue< F64 >() * coordConv;
+        const F64 z = block.GetToken( index+2 )->GetValue< F64 >() * coordConv;
+        const F64 valX = block.GetToken( index+3 )->GetValue< F64 >() * dipoleConv;
+        const F64 valY = block.GetToken( index+4 )->GetValue< F64 >() * dipoleConv;
+        const F64 valZ = block.GetToken( index+5 )->GetValue< F64 >() * dipoleConv;
+        
+        PermSite *psiteX = new PermSite( x, y, z, valX, FitType::dipoleX );  
+        PermSite *psiteY = new PermSite( x, y, z, valY, FitType::dipoleY );
+        PermSite *psiteZ = new PermSite( x, y, z, valZ, FitType::dipoleZ );
+              
+        sys->InsertPermSite(psiteX);
+        sys->InsertPermSite(psiteY);
+        sys->InsertPermSite(psiteZ);
+
+        index += 6;
+    }
 }
 
 void FieldFit::FillUnitsMap( Units &units, std::map< std::string, F64* > &nameToUnit,
