@@ -401,7 +401,8 @@ void FieldFit::Fitter::HandleSumConstraint( Console &console, const PrototypeCon
         
         if ( perSiteList.size() == 0 )
         {
-            throw ArgException( "FieldFit", "Fitter::HandleSumConstraint", "Couldnt fulfill a constraint" );
+            console.Warn( Message( "FieldFit", "Fitter::HandleSumConstraint", "Couldnt fulfill a constraint" ));
+            continue;
         }
         
         // Merge the per site lists;
@@ -439,7 +440,8 @@ void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeCon
     
     if ( perSiteList.size() == 0 )
     {
-        throw ArgException( "FieldFit", "Fitter::HandleSymConstraint", "Couldnt fulfill a constraint" );
+        console.Warn( Message( "FieldFit", "Fitter::HandleSymConstraint", "Couldnt fulfill a constraint" ));
+        return;
     }
     
     //for ( size_t i=0,iend=perSiteList.size(); i < iend; ++i )
