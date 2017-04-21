@@ -103,7 +103,7 @@ std::string FieldFit::EnumToString( FitType type )
     
     case FitType::dipoleZ:
         	
-        return "dipoleY";
+        return "dipoleZ";
     
     case FitType::qd20:
     
