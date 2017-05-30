@@ -58,11 +58,14 @@ namespace FieldFit
         void Error( const Message &msg );   
     
         void AddSystemResult( const SystemResult &sr );
-    
-        void WritePlain( std::ostream &stream, const Units &units, bool verbose );
-        void WriteJson( std::ostream &stream, const Units &units, bool verbose );
+        
+        void Write( std::ostream &stream, const Units *units, bool plain, bool verbose );
+        
         
     private:
+
+        void WritePlain( std::ostream &stream, const Units *units, bool verbose );
+        void WriteJson( std::ostream &stream, const Units *units, bool verbose );
         	
         std::vector< Message > mWarnings;
         std::vector< Message > mErrors;

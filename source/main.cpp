@@ -158,17 +158,11 @@ int main(int argc, char** argv)
     auto t1 = high_resolution_clock::now();
     console.Warn( Message( "", "main", "Runtime (milliseconds): " + Util::ToString( (size_t)duration_cast<milliseconds>(t1 - t0).count() ) ) );
     
+    console.Write(std::cout, units, plain, verbose);
+
+    // if allocated release
     if ( units )
     {
-        if ( plain )
-        {
-            console.WritePlain(std::cout, *units, verbose);
-        }
-        else 
-        {
-            console.WriteJson(std::cout, *units, verbose);
-        }
-        
         delete units;
     }
 }

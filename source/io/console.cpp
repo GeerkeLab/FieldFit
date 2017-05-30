@@ -52,7 +52,19 @@ void FieldFit::Console::AddSystemResult( const SystemResult &sr )
     mSystemResults.push_back( sr );
 }
 
-void FieldFit::Console::WritePlain( std::ostream &stream, const Units &units, bool verbose )
+void FieldFit::Console::Write( std::ostream &stream, const Units *units, bool plain, bool verbose )
+{
+    if ( plain )
+    {
+        WritePlain(std::cout, units, verbose);
+    }
+    else 
+    {
+        WriteJson(std::cout, units, verbose);
+    }
+}
+
+void FieldFit::Console::WritePlain( std::ostream &stream, const Units *units, bool verbose )
 {
     for ( const Message &msg : mWarnings )
     {
@@ -65,20 +77,24 @@ void FieldFit::Console::WritePlain( std::ostream &stream, const Units &units, bo
     }
 }
 
-void FieldFit::Console::WriteJson( std::ostream &stream, const Units &units, bool verbose )
+void FieldFit::Console::WriteJson( std::ostream &stream, const Units *units, bool verbose )
 {
     StringBuffer sb;
     PrettyWriter<StringBuffer> writer(sb);
     
     writer.StartObject();
     {
-        writer.Key("fits");
-        writer.StartObject();
-        for ( const SystemResult &system : mSystemResults )
+        // only write data if we have units available
+        if ( units )
         {
-            system.Serialize( writer, units, verbose );
+            writer.Key("fits");
+            writer.StartObject();
+            for ( const SystemResult &system : mSystemResults )
+            {
+                system.Serialize( writer, *units, verbose );
+            }
+            writer.EndObject();
         }
-        writer.EndObject();
         
         writer.Key("runtime");
         writer.StartArray();
