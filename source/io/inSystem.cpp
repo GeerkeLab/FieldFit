@@ -7,13 +7,15 @@
 #include "configuration/system.h"
 #include "configuration/configuration.h"
 
+#include <set>
+
 namespace FieldFit
 {
     void FillUnitsMap( Units &units, std::map< std::string, F64* > &map,
                        std::map< std::pair< std::string, std::string >, F64 > &unitsMap );  
 }
 
-FieldFit::Units* FieldFit::ReadUnits( const BlockParser &bp )
+FieldFit::Units* FieldFit::ReadUnits( BlockParser &bp )
 {
     const Block *block = bp.GetBlock("UNITS");
     
@@ -64,11 +66,13 @@ FieldFit::Units* FieldFit::ReadUnits( const BlockParser &bp )
             throw ArgException( "FieldFit", "ReadUnits", "type "+it->first+" not present in block [UNITS] " );
         }
     }
+
+    bp.DeleteBlock("UNITS");
     
     return unitsObj;
 }
 
-void FieldFit::ReadGrids( const BlockParser &bp, const Units &units, Configuration &config )
+void FieldFit::ReadGrids( BlockParser &bp, const Units &units, Configuration &config )
 {
     const std::vector< Block > *blockArray = bp.GetBlockArray("GRID");
     
@@ -81,9 +85,11 @@ void FieldFit::ReadGrids( const BlockParser &bp, const Units &units, Configurati
     { 
         ReadGrid(block,units,config);
     }
+
+    bp.DeleteBlock("GRID");
 }
 
-void FieldFit::ReadFields( const BlockParser &bp, const Units &units, Configuration &config )
+void FieldFit::ReadFields( BlockParser &bp, const Units &units, Configuration &config, const std::vector< U32 > &collectionSelection )
 {
     const std::vector< Block > *blockArray = bp.GetBlockArray("FIELD");
     
@@ -91,27 +97,31 @@ void FieldFit::ReadFields( const BlockParser &bp, const Units &units, Configurat
     {
         throw ArgException( "FieldFit", "ReadFields", "block FIELD was not present!" );
     }
-    
+
     for ( const Block &block : *blockArray )
     { 
-        ReadField(block,units,config);
+        ReadField(block,units,config, collectionSelection);
     }
+
+    bp.DeleteBlock("FIELD");
 }
 
-void FieldFit::ReadEfields( const BlockParser &bp, const Units &units, Configuration &config )
+void FieldFit::ReadEfields( BlockParser &bp, const Units &units, Configuration &config )
 {
     const std::vector< Block > *blockArray = bp.GetBlockArray("EFIELD");
     
     if ( blockArray )
     {
         for ( const Block &block : *blockArray )
-        { 
+        {   
             ReadEfield(block, units, config);            
         }
     }
+
+    bp.DeleteBlock("EFIELD");
 }
 
-void FieldFit::ReadSystems( const BlockParser &bp, const Units &units, Configuration &config )
+void FieldFit::ReadSystems( BlockParser &bp, const Units &units, Configuration &config )
 {
     const std::vector< Block > *blockArray = bp.GetBlockArray("SYSTEM");
     
@@ -137,10 +147,12 @@ void FieldFit::ReadSystems( const BlockParser &bp, const Units &units, Configura
         }
         
         config.InsertSystem(newSys);
-    }      
+    }     
+
+    bp.DeleteBlock("SYSTEM"); 
 }
 
-void FieldFit::ReadPermChargeSets( const BlockParser &bp, const Units &units, Configuration &config )
+void FieldFit::ReadPermChargeSets( BlockParser &bp, const Units &units, Configuration &config )
 {
     const std::vector< Block > *blockArray = bp.GetBlockArray("PERMCHARGES");
     
@@ -151,9 +163,11 @@ void FieldFit::ReadPermChargeSets( const BlockParser &bp, const Units &units, Co
             ReadPermChargeSet(block,units,config);
         }
     }
+
+    bp.DeleteBlock("PERMCHARGES");
 }
 
-void FieldFit::ReadPermDipoleSets( const BlockParser &bp, const Units &units, Configuration &config )
+void FieldFit::ReadPermDipoleSets( BlockParser &bp, const Units &units, Configuration &config )
 {
     const std::vector< Block > *blockArray = bp.GetBlockArray("PERMDIPOLES");
     
@@ -164,6 +178,8 @@ void FieldFit::ReadPermDipoleSets( const BlockParser &bp, const Units &units, Co
             ReadPermDipoleSet(block,units,config);
         }
     }
+
+    bp.DeleteBlock("PERMDIPOLES");
 }
 
 void FieldFit::ReadGrid( const Block &block, const Units &units, Configuration &config )
@@ -208,7 +224,7 @@ void FieldFit::ReadGrid( const Block &block, const Units &units, Configuration &
     sys->InsertGrid(newGrid);
 }
 
-void FieldFit::ReadField( const Block &block, const Units &units, Configuration &config )
+void FieldFit::ReadField( const Block &block, const Units &units, Configuration &config, const std::vector< U32 > &collectionSelection )
 {   
     if ( block.Size() < 3 )
     {
@@ -218,19 +234,19 @@ void FieldFit::ReadField( const Block &block, const Units &units, Configuration 
     const std::string &systemName = block.GetToken( 0 )->GetToken();
     const U32 numSets   = block.GetToken( 1 )->GetValue< U32 >();
     const U32 numPoints = block.GetToken( 2 )->GetValue< U32 >();
-    
+
     System *sys = config.FindSystem( systemName );
     
     if ( !sys )
     {
-        throw ArgException( "FieldFit", "ReadGrid", "System with name "+systemName+" not found!" );
+        throw ArgException( "FieldFit", "ReadField", "System with name "+systemName+" not found!" );
     }
     
     const Grid *grid = sys->GetGrid();
     
     if ( !grid )
     {
-        throw ArgException( "FieldFit", "ReadGrid", "Grid for system with name "+systemName+" not found!" );
+        throw ArgException( "FieldFit", "ReadField", "Grid for system with name "+systemName+" not found!" );
     }
     
     if ( numPoints != grid->GetX().n_elem ||
@@ -239,8 +255,33 @@ void FieldFit::ReadField( const Block &block, const Units &units, Configuration 
     {
         throw ArgException( "FieldFit", "ReadField", "configuration "+systemName+" was assigned a field matrix that does not match its grid" );
     }
+
+    std::set< U32 > collectionSet( collectionSelection.begin(), collectionSelection.end() );
+
+    // if no selections were made 
+    if ( collectionSelection.size() == 0 )
+    {   
+        // if no selection make a full set
+        for ( U32 i=0; i < numSets; ++i )
+        {
+            collectionSet.insert(i);
+        }
+    }
+
+    for ( auto it = collectionSet.begin(), itend = collectionSet.end(); it != itend; ++it )
+    {
+        const U32 sel = *it;
+
+        if (sel >= numSets)
+        {
+             throw ArgException( "FieldFit", "ReadField", "Out of bounds collection selection!" );
+        }
+    }
     
-    arma::mat potentials = arma::zeros( numPoints, numSets );
+    // we might do a subselection so do that that into account
+    const U32 numEffectiveSets = collectionSet.size();
+    
+    arma::mat potentials = arma::zeros( numPoints, numEffectiveSets );
 
     //test for the correct size
     if ( block.Size() != ( 3 + ( numPoints * numSets ) ) )
@@ -251,16 +292,33 @@ void FieldFit::ReadField( const Block &block, const Units &units, Configuration 
     const F64 potConv = units.GetPotConv();
     
     U32 index = 3;
-    
+    U32 column = 0;
+
     for ( U32 s=0; s < numSets; ++s )
     {
-        for ( U32 i=0; i < numPoints; ++i,index++ )
+        // test if we actually want to read here or just increment index
+        if ( collectionSet.find(s) != collectionSet.end() )
         {
-            potentials.col(s)[i] = block.GetToken( index )->GetValue< F64 >() * potConv;
-        }  
+            //std::cout << "SELECTING FIELD SET " << s << std::endl;
+            for ( U32 i=0; i < numPoints; ++i,index++ )
+            {
+                potentials.col(column)[i] = block.GetToken( index )->GetValue< F64 >() * potConv;
+            }
+
+            column++;
+        }
+        else
+        {
+            index+=numPoints;
+        }
+    }
+
+    if ( column != numEffectiveSets )
+    {
+        throw ArgException( "FieldFit", "ReadField", "Number of promised subselections does not match number of read in columns!" );
     }
     
-    Field *newField = new Field(potentials);
+    Field *newField = new Field(potentials, collectionSet, numSets);
     sys->InsertField( newField );
 }
 
@@ -293,11 +351,13 @@ void FieldFit::ReadEfield( const Block &block, const Units &units, Configuration
         throw ArgException( "FieldFit", "ReadEfield", "Field for system with name "+systemName+" not found!" );
     }
     
-    if ( setsPerSite != field->GetPotentials().n_cols )
+    if ( setsPerSite != field->PreSelectNumSets() )
     {
         throw ArgException( "FieldFit", "ReadEfield", "Number of efield inputs per sites does not match the number of potential sets" );
     }
 
+    const std::set< U32 > &collectionSet = field->GetCollectionSet();
+    const size_t effectiveSetsPerSite = collectionSet.size();
     const F64 efieldConv = units.GetEfieldConv();
 
     U32 index = 3;
@@ -319,22 +379,36 @@ void FieldFit::ReadEfield( const Block &block, const Units &units, Configuration
         arma::vec ex;
         arma::vec ey;
         arma::vec ez;
-        ex.resize( setsPerSite );
-        ey.resize( setsPerSite );
-        ez.resize( setsPerSite );
+        ex.resize( effectiveSetsPerSite );
+        ey.resize( effectiveSetsPerSite );
+        ez.resize( effectiveSetsPerSite );
         
         // read ef_xyz
+        U32 row = 0;
         for ( U32 s=0; s < setsPerSite; ++s )
         {
-            F64 efx = block.GetToken( index+0 )->GetValue< F64 >() * efieldConv;
-            F64 efy = block.GetToken( index+1 )->GetValue< F64 >() * efieldConv;
-            F64 efz = block.GetToken( index+2 )->GetValue< F64 >() * efieldConv;
-            
-            ex[s] = efx;
-            ey[s] = efy;
-            ez[s] = efz;
+            // do we want to subselect this set?
+            if ( collectionSet.find(s) != collectionSet.end() )
+            {
+                //std::cout << "EFIELD_SELECT " << s << std::endl;
+
+                F64 efx = block.GetToken( index+0 )->GetValue< F64 >() * efieldConv;
+                F64 efy = block.GetToken( index+1 )->GetValue< F64 >() * efieldConv;
+                F64 efz = block.GetToken( index+2 )->GetValue< F64 >() * efieldConv;
+                
+                ex[row] = efx;
+                ey[row] = efy;
+                ez[row] = efz;
+
+                row++;
+            }
             
             index+=3;
+        }
+
+        if ( row != effectiveSetsPerSite )
+        {
+            throw ArgException( "FieldFit", "ReadEfield", "Number of promised subselections does not match number of read in rows!" );
         }
         
         site->AddEfield( ex, ey, ez );
