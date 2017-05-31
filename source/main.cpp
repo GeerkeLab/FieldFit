@@ -90,7 +90,8 @@ int main(int argc, char** argv)
         fieldFiles = multi.getValue();
        
         collectionSelection = multiSelect.getValue();
-       
+        std::sort( collectionSelection.begin(), collectionSelection.end() );
+
         //plain = plainSwitch.getValue();
         verbose = verboseSwitch.getValue();
         debug = debugSwitch.getValue();
@@ -113,14 +114,18 @@ int main(int argc, char** argv)
         Configuration config;
         Constraints   constr;
         
+        //std::cout << "READING" << std::endl;
+
         // Initiate reading of the field files
         BlockParser bp(fieldFiles);
 
         units = ReadUnits( bp );
         
+        //std::cout << "PARSING" << std::endl;
+
         ReadSystems( bp, *units, config );
         ReadGrids( bp, *units, config );
-        ReadFields( bp, *units, config );
+        ReadFields( bp, *units, config, collectionSelection );
         ReadEfields( bp, *units, config );
         ReadPermChargeSets( bp, *units, config );
         ReadPermDipoleSets( bp, *units, config );
@@ -140,14 +145,8 @@ int main(int argc, char** argv)
                 sys->OnUpdate2();
             }   
         }
-        
+
         Fitter fitter; 
-        
-        for ( U32 col : collectionSelection )
-        {
-            fitter.SelectCollection( col );
-        }
-        
         fitter.Fit( console, config, constr, debug );
     }
     catch (FieldFit::ArgException &e)  // catch any exceptions

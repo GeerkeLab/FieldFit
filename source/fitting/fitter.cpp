@@ -22,13 +22,15 @@ FieldFit::Fitter::InternalConstraint::InternalConstraint() :
     
 }
 
-void FieldFit::Fitter::SelectCollection( U32 col )
-{
-    mTargetCollections.push_back( col );
-}
+// void FieldFit::Fitter::SelectCollection( U32 col )
+// {
+//     mTargetCollections.push_back( col );
+// }
 
 void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const Constraints &constraints, bool debug )
 {
+    //std::cout << "SETUP" << std::endl;
+
     AddConfiguration( console, config );
     AddConstraints( console, constraints );
     
@@ -81,6 +83,8 @@ void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const
         
         row++;
     }
+
+    //std::cout << "OLS" << std::endl;
     
     //
     // Generate OLS
@@ -221,17 +225,24 @@ void FieldFit::Fitter::AddConfiguration( Console &console, const Configuration &
     
     for ( const System *sys : config.GetSystems() )
     {
+        const Field *field = sys->GetField();
+
+        if (!field)
+        {
+            throw ArgException( "FieldFit", "Fitter::AddConfiguration", "Fitting system "+sys->GetName()+" requires a field" );
+        }
+
         const arma::mat &localXPrimeX = sys->GetLocalXPrimeX();
         const arma::mat &localXPrimeY  = sys->PotentialMatrix();
           
-        // if no selections were made 
-        if ( mTargetCollections.size() == 0 )
-        {
-            mTargetCollections.resize( localXPrimeY.n_cols );
-            std::iota(mTargetCollections.begin(), mTargetCollections.end(), 0);
-        }
- 
-        for ( U32 i : mTargetCollections )
+        // // if no selections were made 
+        // if ( mTargetCollections.size() == 0 )
+        // {
+        //     mTargetCollections.resize( localXPrimeY.n_cols );
+        //     std::iota(mTargetCollections.begin(), mTargetCollections.end(), 0);
+        // }
+
+        for ( U32 i=0; i < field->NumColumns(); ++i )
         {
             // this is for later if the selection is user input driven!
             if ( i >= localXPrimeY.n_cols )

@@ -25,6 +25,8 @@ namespace FieldFit
     	
         const Block * GetBlock( const std::string &block ) const;
          
+        void DeleteBlock( const std::string &block );
+
         void Clear(); 
          
     private:	

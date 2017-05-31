@@ -14,19 +14,19 @@ namespace FieldFit
     class BlockParser;
     class Configuration;
     
-    Units* ReadUnits( const BlockParser & );
+    Units* ReadUnits( BlockParser & );
     
-    void ReadGrids( const BlockParser &, const Units &units, Configuration &config );
-    void ReadFields( const BlockParser &, const Units &units, Configuration &config );
-    void ReadEfields( const BlockParser &, const Units &units, Configuration &config );
-    void ReadSystems( const BlockParser &, const Units &units, Configuration &config );
-    void ReadPermChargeSets( const BlockParser &, const Units &units, Configuration &config );
-    void ReadPermDipoleSets( const BlockParser &, const Units &units, Configuration &config );
+    void ReadGrids( BlockParser &, const Units &units, Configuration &config );
+    void ReadFields( BlockParser &, const Units &units, Configuration &config, const std::vector< U32 > &collectionSelection );
+    void ReadEfields( BlockParser &, const Units &units, Configuration &config );
+    void ReadSystems( BlockParser &, const Units &units, Configuration &config );
+    void ReadPermChargeSets( BlockParser &, const Units &units, Configuration &config );
+    void ReadPermDipoleSets( BlockParser &, const Units &units, Configuration &config );
 
     System* ReadSystem( const Block &, const Units &units );
 
     void ReadGrid( const Block &, const Units &units, Configuration &config );
-    void ReadField( const Block &, const Units &units, Configuration &config );
+    void ReadField( const Block &, const Units &units, Configuration &config, const std::vector< U32 > &collectionSelection );
     void ReadEfield( const Block &, const Units &units, Configuration &config );
     void ReadPermChargeSet( const Block &, const Units &units, Configuration &config );
     void ReadPermDipoleSet( const Block &, const Units &units, Configuration &config );

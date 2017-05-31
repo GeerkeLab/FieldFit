@@ -50,6 +50,17 @@ const Block * FieldFit::BlockParser::GetBlock( const std::string &block ) const
     
     return blockArray.data();
 }
+
+void FieldFit::BlockParser::DeleteBlock( const std::string &block )
+{
+    std::map< std::string, std::vector< Block > >::const_iterator it = mBlocks.find( block );
+    
+    if ( it != mBlocks.end() )
+    {
+        //std::cout << "ERASING " << block << std::endl;
+        mBlocks.erase(it);
+    }
+}
 	
 void FieldFit::BlockParser::ParseFile( const std::string &file )
 {

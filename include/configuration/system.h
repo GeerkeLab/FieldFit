@@ -6,6 +6,7 @@
 
 #include "configuration/fitType.h"
 
+#include <set>
 #include <string>
 #include <vector>
 #include <armadillo>
@@ -109,12 +110,22 @@ namespace FieldFit
     {
     public:
     
-        Field( const arma::mat &mat );
+        Field( const arma::mat &mat, const std::set< U32 > &collectionSet, U32 preSelectionNumSets );
         
         const arma::mat &GetPotentials() const;
-    
+        
+        U32 NumColumns() const;
+
+        U32 PreSelectNumSets() const;
+        
+        const std::set< U32 > &GetCollectionSet() const;
+
     private:
     
+        // number of sets BEFORE we did any subselect
+        // we use this as a consistency check
+        U32 mPreSelectionNumSets;
+        std::set< U32 > mCollectionSet;
         arma::mat mPotentials;
     };
     

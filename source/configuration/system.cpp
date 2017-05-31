@@ -170,8 +170,8 @@ size_t FieldFit::Grid::Size()
     return mGridX.n_rows;
 }
 
-FieldFit::Field::Field( const arma::mat &mat ) :
-    mPotentials( mat )
+FieldFit::Field::Field( const arma::mat &mat, const std::set< U32 > &collectionSet, U32 preSelectionNumSets ) :
+    mPotentials(mat), mPreSelectionNumSets(preSelectionNumSets), mCollectionSet(collectionSet)
 {
     
 }
@@ -181,6 +181,20 @@ const arma::mat &FieldFit::Field::GetPotentials() const
     return mPotentials;
 }
 
+U32 FieldFit::Field::NumColumns() const
+{
+    return mPotentials.n_cols;
+}
+
+U32 FieldFit::Field::PreSelectNumSets() const
+{
+    return mPreSelectionNumSets;
+}
+        
+const std::set< U32 > &FieldFit::Field::GetCollectionSet() const
+{
+    return mCollectionSet;
+}
 
 FieldFit::System::System( const std::string &name ) :
     mGrid(nullptr), mFields(nullptr), mName( name )
@@ -283,6 +297,8 @@ void FieldFit::System::OnUpdate2()
     mX_prime_y = arma::zeros( n_col, n_sets );
     mCoefficients = arma::zeros( n_points, n_col );
     
+    //std::cout << n_points << " " << n_col << std::endl;
+
     if ( mPermSites.size() > 0 )
     {
         mPermField = GeneratePermField();
