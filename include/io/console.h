@@ -77,6 +77,7 @@ namespace FieldFit
     void FitResult::Serialize( Writer& writer, const Units &units, bool verbose ) const 
     {
        writer.Key(name.c_str());
+       writer.StartObject();
 
        writer.Key("fit_keys");
        writer.StartArray();
@@ -86,8 +87,8 @@ namespace FieldFit
        }
        writer.EndArray();
 
-       writer.StartObject();
-            
+       writer.Key("fit_result");
+       writer.StartObject();            
        for ( S32 t=0; t < FitType::size; ++t )
        {
            FitType fitType = (FitType) t;
@@ -116,7 +117,8 @@ namespace FieldFit
             }
             writer.EndArray();
         }
-            
+
+        writer.EndObject();      
         writer.EndObject();
     }    
     
