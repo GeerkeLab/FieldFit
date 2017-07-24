@@ -18,6 +18,7 @@ namespace FieldFit
         void Serialize( Writer& writer, const Units &units, bool verbose ) const;
         
         std::string name;  
+        std::vector< std::string > coulTypes;
         std::vector< F64 > values[FitType::size];
         std::vector< F64 > alpha;
     };
@@ -76,6 +77,15 @@ namespace FieldFit
     void FitResult::Serialize( Writer& writer, const Units &units, bool verbose ) const 
     {
        writer.Key(name.c_str());
+
+       writer.Key("fit_keys");
+       writer.StartArray();
+       for ( const std::string &fit_key : coulTypes )
+       {
+           writer.String(fit_key.c_str());
+       }
+       writer.EndArray();
+
        writer.StartObject();
             
        for ( S32 t=0; t < FitType::size; ++t )

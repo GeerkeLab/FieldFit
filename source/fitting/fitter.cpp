@@ -139,7 +139,8 @@ void FieldFit::Fitter::WriteSolution(Console &console)
         {
             FitResult &fitResult = systemResult.fitResults[siteIndex];
             fitResult.name = site->GetName();
-            
+            fitResult.coulTypes = site->GetCoulTypes();
+
             F64 dipoleX = 0.0;
             F64 dipoleY = 0.0;
             F64 dipoleZ = 0.0;
