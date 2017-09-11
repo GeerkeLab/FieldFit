@@ -27,7 +27,7 @@ namespace FieldFit
         void AddEfield( const arma::vec &ex,
                         const arma::vec &ey,
                         const arma::vec &ez );
-    
+        
         void AddAlias( const std::string &alias );
     
         const std::string &GetName() const;

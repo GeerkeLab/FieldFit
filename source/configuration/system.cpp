@@ -13,8 +13,10 @@ FieldFit::Site::Site( const U32 types,
                       const F64 coordX,
                       const F64 coordY,
                       const F64 coordZ ) :
-     mName( name ), mCoordX( coordX ), mCoordY( coordY ), 
-     mCoordZ( coordZ ), mTypes( types )
+     mName( name ), 
+     mCoordX( coordX ), mCoordY( coordY ), 
+     mCoordZ( coordZ ), mCosPolarizability(0.0),
+     mCosCharge(0.0), mTypes( types )
 {
     mCoulTypes.push_back(coultype);
 }

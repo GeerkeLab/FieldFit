@@ -111,6 +111,19 @@ void FieldFit::ReadEfields( const BlockParser &bp, const Units &units, Configura
     }
 }
 
+void FieldFit::ReadCosPols( const BlockParser &, const Units &units, Configuration &config )
+{
+    const std::vector< Block > *blockArray = bp.GetBlockArray("COS_POLARIZATION");
+    
+    if ( blockArray )
+    {
+        for ( const Block &block : *blockArray )
+        { 
+            ReadCosPol(block, units, config);            
+        }
+    }
+}
+
 void FieldFit::ReadSystems( const BlockParser &bp, const Units &units, Configuration &config )
 {
     const std::vector< Block > *blockArray = bp.GetBlockArray("SYSTEM");
@@ -339,6 +352,11 @@ void FieldFit::ReadEfield( const Block &block, const Units &units, Configuration
         
         site->AddEfield( ex, ey, ez );
     }
+}
+
+void ReadCosPol( const Block &, const Units &units, Configuration &config )
+{
+    
 }
 
 FieldFit::System* FieldFit::ReadSystem( const Block &block, const Units &units  )

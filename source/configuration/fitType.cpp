@@ -92,7 +92,7 @@ std::string FieldFit::EnumToString( FitType type )
     case FitType::charge:
         	
         return "charge";
-        	
+        
     case FitType::dipoleX:
         	
         return "dipoleX";

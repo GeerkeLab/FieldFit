@@ -19,6 +19,7 @@ namespace FieldFit
     void ReadGrids( const BlockParser &, const Units &units, Configuration &config );
     void ReadFields( const BlockParser &, const Units &units, Configuration &config );
     void ReadEfields( const BlockParser &, const Units &units, Configuration &config );
+    void ReadCosPols( const BlockParser &, const Units &units, Configuration &config );
     void ReadSystems( const BlockParser &, const Units &units, Configuration &config );
     void ReadPermChargeSets( const BlockParser &, const Units &units, Configuration &config );
     void ReadPermDipoleSets( const BlockParser &, const Units &units, Configuration &config );
@@ -28,6 +29,7 @@ namespace FieldFit
     void ReadGrid( const Block &, const Units &units, Configuration &config );
     void ReadField( const Block &, const Units &units, Configuration &config );
     void ReadEfield( const Block &, const Units &units, Configuration &config );
+    void ReadCosPol( const Block &, const Units &units, Configuration &config );
     void ReadPermChargeSet( const Block &, const Units &units, Configuration &config );
     void ReadPermDipoleSet( const Block &, const Units &units, Configuration &config );
 }
