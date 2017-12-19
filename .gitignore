@@ -1,0 +1,9 @@
+*.d
+*.o
+.vscode/settings.json
+bin/x86_64/FieldFit
+build/FieldFit.make
+script/alcohols.json
+extern/premake5
+premake-5.0.0-alpha11-linux.tar.gz
+build/Makefile
