@@ -119,5 +119,48 @@ workspace "FieldFit"
               }
               
         filter {}
-            
+
+    project( "FieldFitSparse" )
+    
+        targetname( "FieldFitSparse" )
+        kind "ConsoleApp"
+        flags "WinMain"
+        
+        links { "lapack", "blas" }
+        buildoptions "-std=c++11"
+        
+        defines {
+                "ARMA_DONT_PRINT_CXX11_WARNING",
+                "ARMA_USE_CXX11",
+                "ARMA_USE_SUPERLU",
+                "ARMA_USE_BLAS",
+                "ARMA_USE_ARPACK",
+                "FIELDFIT_USE_SPARSE"
+            }
+        
+        filter "*Release"
+            defines "ARMA_NO_DEBUG"
+        filter{}        
+                    
+        
+        includedirs {
+                "include/",
+                "extern/armadillo-7.600.2/include/",
+                "extern/tclap-1.2.1/include/",
+                "extern/rapidjson-1.1.0/include/",
+                "extern/SuperLU_5.2.1/SRC/"
+            }
+    
+        files { 
+                "include/**.hpp",
+                "include/**.h"
+            }
+                
+        files { 
+                "source/**.cpp",
+                "extern/SuperLU_5.2.1/SRC/*.c"
+                }
+                
+        filter {}
+
     workspace()
