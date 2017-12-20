@@ -166,9 +166,9 @@ int main(int argc, char** argv)
     }
 
     auto t2 = high_resolution_clock::now();
-    console.Warn( Message( "", "main", "Runtime (hours): " + Util::ToString( (size_t)duration_cast<hours>( t2 - t0).count() ) ) );
-    console.Warn( Message( "", "main", "Parsing (hours): " + Util::ToString( (size_t)duration_cast<hours>( t1 - t0).count() ) ) );
-    console.Warn( Message( "", "main", "Solving (hours): " + Util::ToString( (size_t)duration_cast<hours>( t2 - t1).count() ) ) );
+    console.Warn( Message( "", "main", "Runtime (seconds): " + Util::ToString( (size_t)duration_cast<seconds>( t2 - t0).count() ) ) );
+    console.Warn( Message( "", "main", "Parsing (seconds): " + Util::ToString( (size_t)duration_cast<seconds>( t1 - t0).count() ) ) );
+    console.Warn( Message( "", "main", "Solving (seconds): " + Util::ToString( (size_t)duration_cast<seconds>( t2 - t1).count() ) ) );
 
     console.Write(std::cout, units, plain, verbose);
 
