@@ -141,6 +141,8 @@ int main(int argc, char** argv)
         valid_state = false;
     }
 
+    auto t1 = high_resolution_clock::now();
+
     try 
     {
         if (valid_state)
@@ -163,9 +165,11 @@ int main(int argc, char** argv)
         console.Error( e.GenMessage() );
     }
 
-    auto t1 = high_resolution_clock::now();
-    console.Warn( Message( "", "main", "Runtime (milliseconds): " + Util::ToString( (size_t)duration_cast<milliseconds>(t1 - t0).count() ) ) );
-    
+    auto t2 = high_resolution_clock::now();
+    console.Warn( Message( "", "main", "Runtime (hours): " + Util::ToString( (size_t)duration_cast<hours>( t2 - t0).count() ) ) );
+    console.Warn( Message( "", "main", "Parsing (hours): " + Util::ToString( (size_t)duration_cast<hours>( t1 - t0).count() ) ) );
+    console.Warn( Message( "", "main", "Solving (hours): " + Util::ToString( (size_t)duration_cast<hours>( t2 - t1).count() ) ) );
+
     console.Write(std::cout, units, plain, verbose);
 
     // if allocated release
