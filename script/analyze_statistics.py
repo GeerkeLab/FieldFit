@@ -169,7 +169,7 @@ def main( argv ):
     parser.add_argument('strings', metavar='N', type=str, nargs='+',
                          help='fieldfit files')
     parser.add_argument('--fit_class', nargs='?', help='select specific fit class')
-    parser.add_argument('--winsorize', type=bool, help='winsorize distributions', action='store_true')
+    parser.add_argument('--winsorize', help='winsorize distributions', action='store_true')
 
     args = parser.parse_args()
 
