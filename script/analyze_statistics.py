@@ -81,34 +81,50 @@ def CollectData( datacache ):
     
     return per_compound_group, per_key_group, site_to_key, per_compound_rmsd
 
-def PerCompoundStats( per_compound_group, target_fit_class, site_to_key ):
+def PerCompoundStats( per_compound_group, target_fit_class, site_to_key, winsorize ):
+
+    total_charges = {}
+    total_polarizabilities = {}
 
     out_str=""
-
     for compound, compound_data in per_compound_group.items():
-
         for site, site_data in compound_data.items():
 
             site_to_key_index = "%s::%s" % ( compound, site)
             constr_key = site_to_key[site_to_key_index]
 
-
             for fit_class, fit_class_data in site_data.items():
-
                 if target_fit_class is None or fit_class == target_fit_class:
 
                     avg    = numpy.average(fit_class_data)
                     median = numpy.median(fit_class_data)
                     stdev  = numpy.std(fit_class_data)
                     
-                    winsor = scipy.stats.mstats.winsorize(fit_class_data, (0.05, 0.05))
-
-                    avg_winsor    = numpy.average(winsor)
-                    median_winsor = numpy.median(winsor)
-                    stdev_winsor  = numpy.std(winsor)
+                    if winsorize:
+                        winsor = scipy.stats.mstats.winsorize(fit_class_data, (0.05, 0.05))
+                        avg    = numpy.average(winsor)
+                        median = numpy.median(winsor)
+                        stdev  = numpy.std(winsor)
 
                     
-                    out_str+= "%s %s %s %s %f %f %f %f %f %f\n" % ( compound, site, constr_key, fit_class, avg, median, stdev, avg_winsor, median_winsor, stdev_winsor )
+                    if target_fit_class == "charge":
+                        if not compound in total_charges:
+                            total_charges[compound] = 0.0
+                        total_charges[compound] += avg
+
+                    if target_fit_class == "alpha":
+                        if not compound in total_polarizabilities:
+                            total_polarizabilities[compound] = 0.0
+                        total_polarizabilities[compound] += avg
+
+
+                    out_str+= "%s %s %s %s %f %f %f \n" % ( compound, site, constr_key, fit_class, avg, median, stdev)
+
+    for compound, value in total_charges.items():
+        out_str+= "total_charges %s %f \n" % ( compound, value)
+
+    for compound, value in total_polarizabilities.items():
+        out_str+= "total_polarizabilities %s %f \n" % ( compound, value)
 
     print out_str
 
@@ -127,13 +143,14 @@ def PerKeyStats( per_key_group, target_fit_class ):
                 median = numpy.median(fit_class_data)
                 stdev  = numpy.std(fit_class_data)
                 
-                winsor = scipy.stats.mstats.winsorize(fit_class_data, (0.05, 0.05))
+                if winsorize:
+                    winsor = scipy.stats.mstats.winsorize(fit_class_data, (0.05, 0.05))
+                    avg    = numpy.average(winsor)
+                    median = numpy.median(winsor)
+                    stdev  = numpy.std(winsor)
 
-                avg_winsor    = numpy.average(winsor)
-                median_winsor = numpy.median(winsor)
-                stdev_winsor  = numpy.std(winsor)
+                out_str+= "%s %s %i %f %f %f \n" % ( key, fit_class, N, avg, median, stdev)
 
-                out_str+= "%s %s %i %f %f %f %f %f %f\n" % ( key, fit_class, N, avg, median, stdev, avg_winsor, median_winsor, stdev_winsor )
     print out_str
 
 def PerCompoundRmsd( per_compound_rmsd ):
@@ -146,7 +163,7 @@ def PerCompoundRmsd( per_compound_rmsd ):
         
         print( "%s %f" % ( compound_key, total_rmsd ) )
 
-def PerCo
+def PerCompoundSums
 
 def main( argv ):
 
@@ -154,6 +171,7 @@ def main( argv ):
     parser.add_argument('strings', metavar='N', type=str, nargs='+',
                          help='fieldfit files')
     parser.add_argument('--fit_class', nargs='?', help='select specific fit class')
+    parser.add_argument('--winsorize', type=bool, help='winsorize distributions', action='store_true')
 
     args = parser.parse_args()
 
@@ -165,8 +183,8 @@ def main( argv ):
     
     per_compound_group, per_key_group, site_to_key, per_compound_rmsd = CollectData(data_objs)
 
-    PerCompoundStats( per_compound_group, args.fit_class, site_to_key )
-    PerKeyStats( per_key_group, args.fit_class )
+    PerCompoundStats( per_compound_group, args.fit_class, site_to_key, args.winsorize )
+    PerKeyStats( per_key_group, args.fit_class, winsorize )
     PerCompoundRmsd( per_compound_rmsd )
 
 if __name__ == "__main__":
