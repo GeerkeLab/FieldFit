@@ -136,7 +136,7 @@ def PerKeyStats( per_key_group, target_fit_class ):
                 out_str+= "%s %s %i %f %f %f %f %f %f\n" % ( key, fit_class, N, avg, median, stdev, avg_winsor, median_winsor, stdev_winsor )
     print out_str
 
-def PerCompountRmsd( per_compound_rmsd ):
+def PerCompoundRmsd( per_compound_rmsd ):
 
     for compound_key, rmsds in per_compound_rmsd.items():
         
@@ -145,6 +145,8 @@ def PerCompountRmsd( per_compound_rmsd ):
         total_rmsd = numpy.sqrt( total_sum )
         
         print( "%s %f" % ( compound_key, total_rmsd ) )
+
+def PerCo
 
 def main( argv ):
 
@@ -165,7 +167,7 @@ def main( argv ):
 
     PerCompoundStats( per_compound_group, args.fit_class, site_to_key )
     PerKeyStats( per_key_group, args.fit_class )
-    PerCompountRmsd( per_compound_rmsd )
+    PerCompoundRmsd( per_compound_rmsd )
 
 if __name__ == "__main__":
     # execute only if run as a script
