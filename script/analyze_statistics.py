@@ -128,7 +128,7 @@ def PerCompoundStats( per_compound_group, target_fit_class, site_to_key, winsori
 
     print (out_str)
 
-def PerKeyStats( per_key_group, target_fit_class ):
+def PerKeyStats( per_key_group, target_fit_class, winsorize ):
 
     out_str=""
 
