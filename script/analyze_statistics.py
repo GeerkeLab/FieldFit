@@ -184,7 +184,7 @@ def main( argv ):
     per_compound_group, per_key_group, site_to_key, per_compound_rmsd = CollectData(data_objs)
 
     PerCompoundStats( per_compound_group, args.fit_class, site_to_key, args.winsorize )
-    PerKeyStats( per_key_group, args.fit_class, winsorize )
+    PerKeyStats( per_key_group, args.fit_class, args.winsorize )
     PerCompoundRmsd( per_compound_rmsd )
 
 if __name__ == "__main__":
