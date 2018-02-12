@@ -151,7 +151,7 @@ def PerKeyStats( per_key_group, target_fit_class ):
 
                 out_str+= "%s %s %i %f %f %f \n" % ( key, fit_class, N, avg, median, stdev)
 
-    print out_str
+    print (out_str)
 
 def PerCompoundRmsd( per_compound_rmsd ):
 
@@ -162,8 +162,6 @@ def PerCompoundRmsd( per_compound_rmsd ):
         total_rmsd = numpy.sqrt( total_sum )
         
         print( "%s %f" % ( compound_key, total_rmsd ) )
-
-def PerCompoundSums
 
 def main( argv ):
 
