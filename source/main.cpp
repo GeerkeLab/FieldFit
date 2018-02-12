@@ -101,8 +101,12 @@ int main(int argc, char** argv)
         console.Error( Message( "::", "TCLAP::main", e.error() ) );
     }
     
+    bool valid_state = true;
+
     const Units *units = nullptr;
-    
+    Configuration config;
+    Constraints   constr;
+
     try 
     {
         // In a first step we grep all the lines from the multifiles
@@ -111,17 +115,9 @@ int main(int argc, char** argv)
             ReadFilesFromList(f,fieldFiles);
         }
         
-        Configuration config;
-        Constraints   constr;
-        
-        //std::cout << "READING" << std::endl;
-
         // Initiate reading of the field files
         BlockParser bp(fieldFiles);
-
         units = ReadUnits( bp );
-        
-        //std::cout << "PARSING" << std::endl;
 
         ReadSystems( bp, *units, config );
         ReadGrids( bp, *units, config );
@@ -137,26 +133,43 @@ int main(int argc, char** argv)
         //clean up after reading
         bp.Clear();
         
-        // start data generation
-        for ( FieldFit::System *sys : config.GetSystems() )
-        {
-            if (sys)
-            {
-                sys->OnUpdate2();
-            }   
-        }
+        
+    }
+    catch (FieldFit::ArgException &e)  // catch any exceptions
+	{ 
+        console.Error( e.GenMessage() );
+        valid_state = false;
+    }
 
-        Fitter fitter; 
-        fitter.Fit( console, config, constr, debug );
+    auto t1 = high_resolution_clock::now();
+
+    try 
+    {
+        if (valid_state)
+        {
+            // start data generation
+            for ( FieldFit::System *sys : config.GetSystems() )
+            {
+                if (sys)
+                {
+                    sys->OnUpdate2();
+                }   
+            }
+
+            Fitter fitter; 
+            fitter.Fit( console, config, constr, debug );
+        }
     }
     catch (FieldFit::ArgException &e)  // catch any exceptions
 	{ 
         console.Error( e.GenMessage() );
     }
-    
-    auto t1 = high_resolution_clock::now();
-    console.Warn( Message( "", "main", "Runtime (milliseconds): " + Util::ToString( (size_t)duration_cast<milliseconds>(t1 - t0).count() ) ) );
-    
+
+    auto t2 = high_resolution_clock::now();
+    console.Warn( Message( "", "main", "Runtime (seconds): " + Util::ToString( (size_t)duration_cast<seconds>( t2 - t0).count() ) ) );
+    console.Warn( Message( "", "main", "Parsing (seconds): " + Util::ToString( (size_t)duration_cast<seconds>( t1 - t0).count() ) ) );
+    console.Warn( Message( "", "main", "Solving (seconds): " + Util::ToString( (size_t)duration_cast<seconds>( t2 - t1).count() ) ) );
+
     console.Write(std::cout, units, plain, verbose);
 
     // if allocated release

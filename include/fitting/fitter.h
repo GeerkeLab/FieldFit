@@ -5,6 +5,8 @@
 #include "common/types.h"
 
 #include "configuration/fitType.h"
+#include "fitting/fitting_math.h"
+
 
 #include <string>
 #include <vector>
@@ -62,9 +64,9 @@ namespace FieldFit
         
         void WriteSolution( Console &console );
         
-        arma::mat x_prime_x;
-        arma::mat x_prime_y;
-        arma::vec mSolution;
+        fit_matrix x_prime_x;
+        arma::vec  x_prime_y;
+        arma::vec  mSolution;
         
         std::vector< LocalSystem > mLocalSystems;
         std::vector< InternalConstraint > mInternalConstraints;

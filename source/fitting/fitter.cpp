@@ -69,7 +69,7 @@ void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const
     size_t row =  x_prime_x.n_rows;
     x_prime_x.resize( x_prime_x.n_rows + mInternalConstraints.size(), 
                       x_prime_x.n_cols + mInternalConstraints.size() );
-    x_prime_y.resize( x_prime_y.n_rows + mInternalConstraints.size() );
+    x_prime_y.resize( x_prime_y.n_rows + mInternalConstraints.size(), 1 );
     
     for ( const InternalConstraint &constr : mInternalConstraints )
     {
@@ -101,7 +101,7 @@ void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const
         std::cout << "[END]" << std::endl;
     }
     
-    mSolution = solve( x_prime_x, x_prime_y );
+    mSolution = FIELDFIT_SOLVE( x_prime_x, x_prime_y );
     
     WriteSolution(console);
 }
@@ -262,7 +262,7 @@ void FieldFit::Fitter::AddConfiguration( Console &console, const Configuration &
             x_prime_x.resize( x_prime_x.n_rows + localXPrimeX.n_rows,
                               x_prime_x.n_cols + localXPrimeX.n_cols );
             
-            x_prime_y.resize( x_prime_y.n_rows + localXPrimeY.n_rows );
+            x_prime_y.resize( x_prime_y.n_rows + localXPrimeY.n_rows, 1 );
             
             localSys.first_row = rowOrigin;
             localSys.first_col = colOrigin;
