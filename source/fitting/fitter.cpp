@@ -386,7 +386,7 @@ void FieldFit::Fitter::PerSiteConstraintList( Console &console, const LocalSyste
             }
             else
             {
-                throw ArgException( "FieldFit", "Fitter::HandleSumConstraint", "For atom "+site->GetName()+" not all contraints can be processed due to missing fit types" );
+                throw ArgException( "FieldFit", "Fitter::HandleSumConstraint", "For atom "+site->GetName()+" in system "+system->GetName()+" not all contraints can be processed due to missing fit types" );
             }
             
             if ( newConstraint.columns.size() > 0 )
