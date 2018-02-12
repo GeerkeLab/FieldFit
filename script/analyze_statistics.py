@@ -13,9 +13,9 @@ from collections import OrderedDict
 def BaseName(path):
 
     base = os.path.basename(path)
-    filename, file_extension = os.path.splitext(base)
+    #filename, file_extension = os.path.splitext(base)
 
-    return filename
+    return base
 
 def LoadFieldfitData( ifs ):
 
@@ -126,7 +126,7 @@ def PerCompoundStats( per_compound_group, target_fit_class, site_to_key, winsori
     for compound, value in total_polarizabilities.items():
         out_str+= "total_polarizabilities %s %f \n" % ( compound, value)
 
-    print out_str
+    print (out_str)
 
 def PerKeyStats( per_key_group, target_fit_class ):
 
@@ -178,6 +178,8 @@ def main( argv ):
     data_objs = {}
     for path in args.strings:
         coll_name = BaseName(path)
+
+        print ( "coll_name %s" % (coll_name) )
         with open(path,'r') as ifs:
             data_objs[coll_name] = LoadFieldfitData(ifs)
     
