@@ -184,6 +184,9 @@ void FieldFit::Fitter::WriteSolution(Console &console)
                 if ( dipoleX != 0.0 && efieldX != 0.0 )
                 {
                     F64 alpha_xx = dipoleX / efieldX;
+                    fitResult.efX.push_back(efieldX);
+                    fitResult.alphaX.push_back(alpha_xx);
+
                     alphaContrib++;
                     alphaSum += alpha_xx;
                 }
@@ -191,6 +194,9 @@ void FieldFit::Fitter::WriteSolution(Console &console)
                 if ( dipoleY != 0.0 && efieldY != 0.0 )
                 {
                     F64 alpha_yy = dipoleY / efieldY;
+                    fitResult.efY.push_back(efieldY);
+                    fitResult.alphaY.push_back(alpha_yy);
+                    
                     alphaContrib++;
                     alphaSum += alpha_yy;
                 }
@@ -198,6 +204,9 @@ void FieldFit::Fitter::WriteSolution(Console &console)
                 if ( dipoleZ != 0.0 && efieldZ != 0.0 )
                 {
                     F64 alpha_zz = dipoleZ / efieldZ;
+                    fitResult.efZ.push_back(efieldZ);
+                    fitResult.alphaZ.push_back(alpha_zz);
+
                     alphaContrib++;
                     alphaSum += alpha_zz;
                 }

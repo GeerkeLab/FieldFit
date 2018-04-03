@@ -15,11 +15,20 @@ namespace FieldFit
     struct FitResult
     {
         template <typename Writer>
+        void SerializeArray( Writer& writer, const std::vector<F64> &vec, const std::string &name, const F64 conv_factor, bool verbose ) const; 
+        
+        template <typename Writer>
         void Serialize( Writer& writer, const Units &units, bool verbose ) const;
         
         std::string name;  
         std::vector< std::string > coulTypes;
         std::vector< F64 > values[FitType::size];
+        std::vector< F64 > efX;
+        std::vector< F64 > efY;
+        std::vector< F64 > efZ;
+        std::vector< F64 > alphaX;
+        std::vector< F64 > alphaY;
+        std::vector< F64 > alphaZ;
         std::vector< F64 > alpha;
     };
     
@@ -27,7 +36,7 @@ namespace FieldFit
     {
         SystemResult( const std::string &name, size_t numSites );
         ~SystemResult();
-        
+
         template <typename Writer>
         void Serialize( Writer& writer, const Units &units, bool verbose ) const; 
         
@@ -73,6 +82,22 @@ namespace FieldFit
         std::vector< SystemResult > mSystemResults;
     };
     
+
+    template <typename Writer>
+    void FitResult::SerializeArray( Writer& writer, const std::vector<F64> &vec, const std::string &name, const F64 conv_factor, bool verbose ) const
+    {
+        if ( vec.size() > 0 || verbose )
+        { 
+            writer.Key(name.c_str());
+            writer.StartArray();
+            for ( F64 val : vec )
+            {
+                writer.Double( val / conv_factor );
+            }
+            writer.EndArray();
+        }
+    }
+
     template <typename Writer>
     void FitResult::Serialize( Writer& writer, const Units &units, bool verbose ) const 
     {
@@ -105,19 +130,17 @@ namespace FieldFit
                }
                writer.EndArray();
            }
-       }
-            
-       if ( alpha.size() > 0 || verbose )
-       {
-            writer.Key("alpha");
-            writer.StartArray();
-            for ( F64 val : alpha )
-            {
-                writer.Double( val / units.GetAlphaConv() );
-            }
-            writer.EndArray();
         }
+            
+        SerializeArray( writer, alpha,  "alpha",  units.GetAlphaConv(), verbose );
+        SerializeArray( writer, alphaX, "alphaX", units.GetAlphaConv(), verbose );
+        SerializeArray( writer, alphaY, "alphaY", units.GetAlphaConv(), verbose );
+        SerializeArray( writer, alphaZ, "alphaZ", units.GetAlphaConv(), verbose );
 
+        SerializeArray( writer, efX, "efX", units.GetEfieldConv(), verbose );
+        SerializeArray( writer, efY, "efY", units.GetEfieldConv(), verbose );
+        SerializeArray( writer, efZ, "efZ", units.GetEfieldConv(), verbose );
+        
         writer.EndObject();      
         writer.EndObject();
     }    
