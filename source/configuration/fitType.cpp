@@ -43,6 +43,27 @@ U32 FieldFit::StringTypeToFitFlags( const std::string &fitFlags )
         flags |= 1 << FitType::dipoleY;
         flags |= 1 << FitType::dipoleZ;
     }
+    else if (  fitFlags == "alpha_x" )
+    {
+        flags |= 1 << FitType::dipoleX;
+        //flags |= 1 << FitType::dipoleY;
+        //flags |= 1 << FitType::dipoleZ;
+        flags |= 1 << SpecialFlag::alpha;
+    }
+    else if (  fitFlags == "alpha_y" )
+    {
+        //flags |= 1 << FitType::dipoleX;
+        flags |= 1 << FitType::dipoleY;
+        //flags |= 1 << FitType::dipoleZ;
+        flags |= 1 << SpecialFlag::alpha;
+    }
+    else if (  fitFlags == "alpha_z" )
+    {
+        //flags |= 1 << FitType::dipoleX;
+        //flags |= 1 << FitType::dipoleY;
+        flags |= 1 << FitType::dipoleZ;
+        flags |= 1 << SpecialFlag::alpha;
+    }
     else if (  fitFlags == "alpha" )
     {
         flags |= 1 << FitType::dipoleX;
