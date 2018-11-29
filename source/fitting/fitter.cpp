@@ -465,6 +465,8 @@ void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeCon
         return;
     }
     
+    //std::cout << "perSiteList: " << perSiteList.size() << std::endl;
+
     //for ( size_t i=0,iend=perSiteList.size(); i < iend; ++i )
     for ( size_t i=0,iend=perSiteList.size()-1; i < iend; ++i )
     {
@@ -480,6 +482,8 @@ void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeCon
             
             ic_i.columns.insert(ic_i.columns.end(), ic_j.columns.begin(), ic_j.columns.end());
             
+            //std::cout << "ic_i.columns: " << ic_i.columns.size() << std::endl;
+
             // Now for the coeficients we need to invert them first
             for ( F64 coef : ic_j.coefficients )
             {
@@ -493,6 +497,46 @@ void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeCon
             else
             {
                 mInternalConstraints.push_back( ic_i );
+            }
+        }
+    }
+
+    // also sym the inner components
+    // can be made a flag later on!
+    if (true)
+    {
+        for ( size_t i=0,iend=perSiteList.size(); i < iend; ++i )
+        {
+            const InternalConstraint &ic_i = perSiteList[i];
+
+            // if more columns than 1 we want to sym all inner columns
+            // if the flag is on
+            if (ic_i.columns.size() > 1)
+            {
+                for (size_t ij=0,ijend=ic_i.columns.size()-1; ij < ijend; ++ij )
+                {
+                    size_t jj = ij + 1;
+
+                    InternalConstraint new_c;
+
+                    new_c.columns.push_back(ic_i.columns[ij]);
+                    new_c.columns.push_back(ic_i.columns[jj]);
+
+                    new_c.coefficients.push_back( ic_i.coefficients[ij]);
+                    new_c.coefficients.push_back(-ic_i.coefficients[jj]);
+
+                    new_c.fconst = ic_i.fconst;
+                    new_c.reference = 0.0;
+
+                    if ( new_c.fconst != 0.0 )
+                    {
+                        mInternalRestraints.push_back( new_c );
+                    }
+                    else
+                    {
+                        mInternalConstraints.push_back( new_c );
+                    }
+                }
             }
         }
     }
