@@ -49,18 +49,18 @@ namespace FieldFit
         	std::vector< F64 > coefficients;
         };
     
-        void Fit( Console &console, const Configuration &config, const Constraints &constr, bool verbose );
+        void Fit( Console &console, const Configuration &config, const Constraints &constr, bool verbose, bool compat );
         
     private:
         
         F64 ConstraintCoefficient( const Site *site, FitType fitType, U32 collectionIndex );
         void PerSiteConstraintList( Console &console, const LocalSystem &localSys, const PrototypeConstraint &proto, 
                                     std::vector< InternalConstraint > &perSiteList );
-        void HandleSymConstraint( Console &console, const PrototypeConstraint &proto );
+        void HandleSymConstraint( Console &console, const PrototypeConstraint &proto, bool compat );
         void HandleSumConstraint( Console &console, const PrototypeConstraint &proto );
         
         void AddConfiguration( Console &console, const Configuration &config );
-        void AddConstraints( Console &console, const Constraints &constr );
+        void AddConstraints( Console &console, const Constraints &constr, bool compat );
         
         void WriteSolution( Console &console );
         

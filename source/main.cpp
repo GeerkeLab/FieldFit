@@ -62,7 +62,8 @@ int main(int argc, char** argv)
     bool plain = false;
     bool debug = false;
     bool verbose = false;
-    
+    bool compat = false;
+
     Console console;
     auto t0 = high_resolution_clock::now();
     
@@ -72,8 +73,8 @@ int main(int argc, char** argv)
 	    TCLAP::CmdLine cmd( blockDesc, ' ', "0.9.1" );
 	        
 	    TCLAP::SwitchArg verboseSwitch("v","verbose","Print verbose output", cmd, false);
-        //TCLAP::SwitchArg plainSwitch("p","plain","Format output as plain", cmd, false);
         TCLAP::SwitchArg debugSwitch("d","debug","Debug print internal matrices", cmd, false); 
+        TCLAP::SwitchArg compatSwitch("c","compat","Compatability mode for old calculations", cmd, false);
         TCLAP::MultiArg<std::string> multiFileArg("f", "files", "File containing field-fit file names", false,"string" );
         TCLAP::UnlabeledMultiArg<std::string> multi( "fieldFiles", "Generic input for field-files containing blocks", false,"string" );
        
@@ -95,6 +96,7 @@ int main(int argc, char** argv)
         //plain = plainSwitch.getValue();
         verbose = verboseSwitch.getValue();
         debug = debugSwitch.getValue();
+        compat = compatSwitch.getValue();
 	} 
     catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ 

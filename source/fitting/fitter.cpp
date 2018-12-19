@@ -27,12 +27,12 @@ FieldFit::Fitter::InternalConstraint::InternalConstraint() :
 //     mTargetCollections.push_back( col );
 // }
 
-void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const Constraints &constraints, bool debug )
+void FieldFit::Fitter::Fit( Console &console, const Configuration &config, const Constraints &constraints, bool debug, bool compat )
 {
     //std::cout << "SETUP" << std::endl;
 
     AddConfiguration( console, config );
-    AddConstraints( console, constraints );
+    AddConstraints( console, constraints, compat );
     
     //
     // Add restraints
@@ -290,7 +290,7 @@ void FieldFit::Fitter::AddConfiguration( Console &console, const Configuration &
     }
 }
 
-void FieldFit::Fitter::AddConstraints( Console &console, const Constraints &constraints )
+void FieldFit::Fitter::AddConstraints( Console &console, const Constraints &constraints, bool compat )
 {
     for ( const PrototypeConstraint &proto : constraints.GetConstraints() )
     {
@@ -298,7 +298,7 @@ void FieldFit::Fitter::AddConstraints( Console &console, const Constraints &cons
         
         if ( constrType == ConstrType::SymConstr )
         {
-            HandleSymConstraint( console, proto );
+            HandleSymConstraint( console, proto, compat );
         }
         else if ( constrType == ConstrType::SumConstr )
         {
@@ -448,7 +448,7 @@ void FieldFit::Fitter::HandleSumConstraint( Console &console, const PrototypeCon
     }
 }
 
-void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeConstraint &proto )
+void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeConstraint &proto, bool compat )
 {
     std::vector< InternalConstraint > perSiteList;
     
@@ -503,7 +503,7 @@ void FieldFit::Fitter::HandleSymConstraint( Console &console, const PrototypeCon
 
     // also sym the inner components
     // can be made a flag later on!
-    if (true)
+    if (!compat)
     {
         for ( size_t i=0,iend=perSiteList.size(); i < iend; ++i )
         {
